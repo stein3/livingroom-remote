@@ -129,6 +129,14 @@ light:
     id: buzzer
     default_transition_length: 0s
 
+font:
+  - file: "gfonts://Inter@600"
+    id: font_xs
+    size: 13
+  - file: "gfonts://Inter@600"
+    id: font_sm
+    size: 16
+
 # =============================================================================
 # Rasterized Binary Vector Images (1-bit crisp monochrome)
 # =============================================================================
@@ -500,6 +508,7 @@ display:
       const int w = it.get_width();
       const int h = it.get_height();
 
+      // Rounded rectangle drawing helpers
       auto fill_rounded_rect = [&](int x, int y, int width, int height, int radius, Color color) {
         const int r = std::min(radius, std::min(width, height) / 2);
         it.filled_rectangle(x + r, y, width - 2 * r, height, color);
@@ -509,6 +518,7 @@ display:
         it.filled_circle(x + r, y + height - r - 1, r, color);
         it.filled_circle(x + width - r - 1, y + height - r - 1, r, color);
       };
+
       auto rounded_rect = [&](int x, int y, int width, int height, int radius) {
         fill_rounded_rect(x, y, width, height, radius, black);
         fill_rounded_rect(x + 2, y + 2, width - 4, height - 4, std::max(0, radius - 2), white);
@@ -517,90 +527,104 @@ display:
       it.fill(white);
       it.rectangle(0, 0, w, h, black);
 
-      // --- Top Status Bar ---
-      // Battery glyph
-      it.rectangle(440, 14, 24, 12, black);
-      it.filled_rectangle(464, 17, 3, 6, black);
-      int b_pct = !isnan(id(battery_level).state) ? id(battery_level).state : 50;
-      int fill_w = (18 * b_pct) / 100;
-      if (fill_w > 0) it.filled_rectangle(443, 16, fill_w, 8, black);
-
-      // Volume readout bar
-      int v_pct = id(denon_volume).has_state() ? static_cast<int>(id(denon_volume).state * 100.0f) : 0;
-      bool is_muted = id(denon_muted).state;
-      it.rectangle(18, 14, 110, 12, black);
-      if (is_muted) {
-        it.line(18, 14, 128, 26, black);
-        it.line(18, 26, 128, 14, black);
-      } else {
-        int v_w = (106 * v_pct) / 100;
-        if (v_w > 0) it.filled_rectangle(20, 16, v_w, 8, black);
+      // =======================================================================
+      // 1. TOP STATUS BAR (Time, Date, Shield/TV State, Battery %)
+      // =======================================================================
+      auto now = id(rtc_time).now();
+      if (now.is_valid()) {
+        it.strftime(16, 12, id(font_sm), black, TextAlign::TOP_LEFT, "%H:%M", now);
+        it.strftime(75, 13, id(font_xs), black, TextAlign::TOP_LEFT, "%a %b %d", now);
       }
 
-      // Vertical Divider between App Column (Left) and Remote Controls (Right)
-      it.vertical_line(140, 36, 740, black);
+      // On/Off device indicator
+      bool tv_on = id(shield_is_on).state;
+      it.printf(285, 13, id(font_xs), black, TextAlign::TOP_CENTER, "SHIELD: %s", tv_on ? "ON" : "OFF");
+
+      // Battery level & icon
+      int b_pct = !isnan(id(battery_level).state) ? static_cast<int>(id(battery_level).state) : 0;
+      it.printf(435, 12, id(font_xs), black, TextAlign::TOP_RIGHT, "%d%%", b_pct);
+      it.rectangle(442, 12, 22, 12, black);
+      it.filled_rectangle(464, 15, 2, 6, black);
+      int b_bar = (18 * b_pct) / 100;
+      if (b_bar > 0) it.filled_rectangle(444, 14, b_bar, 8, black);
+
+      it.horizontal_line(16, 36, 448, black);
 
       // =======================================================================
-      // LEFT COLUMN: 8 STREAMING APP ICONS (x: 18, w: 104, h: 80)
+      // 2. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 48 to 330)
       // =======================================================================
-      for (int i = 0; i < 8; i++) {
-        int ay = 45 + i * 92;
-        rounded_rect(18, ay, 104, 80, 12);
-      }
-      it.image(70, 85, id(logo_youtube), ImageAlign::CENTER, black, white);
-      it.image(70, 177, id(logo_jellyfin), ImageAlign::CENTER, black, white);
-      it.image(70, 269, id(logo_crunchyroll), ImageAlign::CENTER, black, white);
-      it.image(70, 361, id(logo_prime), ImageAlign::CENTER, black, white);
-      it.image(70, 453, id(logo_dropout), ImageAlign::CENTER, black, white);
-      it.image(70, 545, id(logo_f1), ImageAlign::CENTER, black, white);
-      it.image(70, 637, id(logo_max), ImageAlign::CENTER, black, white);
-      it.image(70, 729, id(logo_disney), ImageAlign::CENTER, black, white);
-
-      // =======================================================================
-      // RIGHT PANEL: NAVIGATION, D-PAD & MEDIA (Thumb Ergonomics)
-      // =======================================================================
-      
-      // Secondary Navigation Row (Back, Home, Menu)
-      rounded_rect(155, 45, 92, 75, 12);
-      it.image(201, 82, id(icon_back), ImageAlign::CENTER, black, white);
-
-      rounded_rect(260, 45, 92, 75, 12);
-      it.image(306, 82, id(icon_home), ImageAlign::CENTER, black, white);
-
-      rounded_rect(365, 45, 92, 75, 12);
-      it.image(411, 82, id(icon_menu), ImageAlign::CENTER, black, white);
-
-      // Primary D-Pad Matrix (y: 135 to 455)
       // Up
-      rounded_rect(235, 135, 142, 95, 12);
-      it.image(306, 182, id(icon_up), ImageAlign::CENTER, black, white);
-      // Left
-      rounded_rect(155, 242, 95, 125, 12);
-      it.image(202, 304, id(icon_left), ImageAlign::CENTER, black, white);
-      // Center (Select)
-      fill_rounded_rect(262, 242, 88, 125, 12, black);
-      it.image(306, 304, id(icon_select), ImageAlign::CENTER, white, black);
-      // Right
-      rounded_rect(362, 242, 95, 125, 12);
-      it.image(409, 304, id(icon_right), ImageAlign::CENTER, black, white);
+      rounded_rect(150, 48, 180, 85, 14);
+      it.image(240, 90, id(icon_up), ImageAlign::CENTER, black, white);
+
+      // Left - Center (Select) - Right
+      rounded_rect(16, 142, 120, 90, 14);
+      it.image(76, 187, id(icon_left), ImageAlign::CENTER, black, white);
+
+      fill_rounded_rect(148, 142, 184, 90, 14, black);
+      it.image(240, 187, id(icon_select), ImageAlign::CENTER, white, black);
+
+      rounded_rect(344, 142, 120, 90, 14);
+      it.image(404, 187, id(icon_right), ImageAlign::CENTER, black, white);
+
       // Down
-      rounded_rect(235, 379, 142, 95, 12);
-      it.image(306, 426, id(icon_down), ImageAlign::CENTER, black, white);
+      rounded_rect(150, 241, 180, 85, 14);
+      it.image(240, 283, id(icon_down), ImageAlign::CENTER, black, white);
 
-      // Media Play/Pause Bar
-      rounded_rect(155, 495, 302, 85, 12);
-      it.image(306, 537, id(icon_play_pause), ImageAlign::CENTER, black, white);
+      // =======================================================================
+      // 3. BACK - HOME - PLAY/PAUSE (y: 340 to 425)
+      // =======================================================================
+      rounded_rect(16, 340, 140, 85, 14);
+      it.image(86, 382, id(icon_back), ImageAlign::CENTER, black, white);
 
-      // Denon AVR Volume Controls (Vol-, Vol+, Mute)
-      rounded_rect(155, 600, 92, 85, 12);
-      it.image(201, 642, id(icon_vol_down), ImageAlign::CENTER, black, white);
+      rounded_rect(170, 340, 140, 85, 14);
+      it.image(240, 382, id(icon_home), ImageAlign::CENTER, black, white);
 
-      rounded_rect(260, 600, 92, 85, 12);
-      it.filled_rectangle(296, 640, 20, 4, black);
-      it.filled_rectangle(304, 632, 4, 20, black); // Large Plus icon
+      rounded_rect(324, 340, 140, 85, 14);
+      it.image(394, 382, id(icon_play_pause), ImageAlign::CENTER, black, white);
 
-      rounded_rect(365, 600, 92, 85, 12);
-      it.image(411, 642, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+      // =======================================================================
+      // 4. VOLUME MUTE - VOLUME DOWN - VOLUME UP (y: 438 to 523)
+      // =======================================================================
+      rounded_rect(16, 438, 140, 85, 14);
+      it.image(86, 480, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+
+      rounded_rect(170, 438, 140, 85, 14);
+      it.image(240, 480, id(icon_vol_down), ImageAlign::CENTER, black, white);
+
+      // Volume Up (+ icon)
+      rounded_rect(324, 438, 140, 85, 14);
+      it.filled_rectangle(382, 478, 24, 4, black);
+      it.filled_rectangle(392, 468, 4, 24, black);
+
+      it.horizontal_line(16, 538, 448, black);
+
+      // =======================================================================
+      // 5. TWO ROWS OF FOUR MEDIA APPS (y: 550 to 780)
+      // =======================================================================
+      const int app_w = 104;
+      const int app_h = 100;
+      const int app_gap_x = 10;
+      const int app_gap_y = 15;
+      const int app_start_x = 16;
+      const int app_start_y = 552;
+
+      // Row 1: YouTube, Jellyfin, Crunchyroll, Prime Video
+      // Row 2: Dropout, F1 TV, Max, Disney+
+      display::BaseImage* app_logos[8] = {
+        id(logo_youtube), id(logo_jellyfin), id(logo_crunchyroll), id(logo_prime),
+        id(logo_dropout), id(logo_f1), id(logo_max), id(logo_disney)
+      };
+
+      for (int i = 0; i < 8; i++) {
+        int col = i % 4;
+        int row = i / 4;
+        int ax = app_start_x + col * (app_w + app_gap_x);
+        int ay = app_start_y + row * (app_h + app_gap_y);
+
+        rounded_rect(ax, ay, app_w, app_h, 12);
+        it.image(ax + (app_w / 2), ay + (app_h / 2), app_logos[i], ImageAlign::CENTER, black, white);
+      }
 
 # =============================================================================
 # GT911 Touchscreen Coordinates Mapping
