@@ -21,6 +21,10 @@ esphome:
         - output.turn_on: pwr_hold
         - output.turn_on: pwr_lock
         - switch.turn_on: touch_power_enable
+        - component.update: battery_level
+        - logger.log:
+            format: "Battery at boot: %.0f%%"
+            args: ['id(battery_level).state']
         - pcf8563.read_time:
         - delay: 500ms
         - component.update: epaper_display
@@ -55,6 +59,7 @@ logger:
 api:
   encryption:
     key: !secret api_encryption_key
+  reboot_timeout: 0s
 
 ota:
   - platform: esphome
@@ -95,6 +100,7 @@ i2c:
       number: GPIO3
       ignore_strapping_warning: true
     frequency: 100kHz
+    scan: true
 
 output:
   - platform: gpio
@@ -166,12 +172,15 @@ image:
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/cursor-arrow-ripple.svg
       - id: icon_play_pause
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/play-pause.svg
-      - id: icon_vol_down
-        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-wave.svg
-        resize: 38x38
       - id: icon_vol_mute
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-x-mark.svg
-        resize: 38x38
+        resize: 42x42
+      - id: icon_vol_down
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-wave.svg
+        resize: 24x24
+      - id: icon_vol_up
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-wave.svg
+        resize: 46x46
 
   # Streaming Service Provider Logos (48x48 to 64x40)
   - platform: file
@@ -189,11 +198,12 @@ image:
         file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/crunchyroll.svg
         resize: 48x48
       - id: logo_prime
-        file: https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg
-        resize: 56x36
+        file: https://www.svgrepo.com/show/473763/prime.svg
+        type: BINARY
+        resize: 56x56
       - id: logo_f1
         file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/f1.svg
-        resize: 56x28
+        resize: 64x96
       - id: logo_max
         file: https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg
         resize: 60x40
@@ -202,7 +212,7 @@ image:
         resize: 46x46
       - id: logo_dropout
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/film.svg
-        resize: 46x46
+        resize: 56x56
 
 # =============================================================================
 # State Globals
@@ -284,6 +294,9 @@ script:
       cmd: string
     then:
       - script.execute: beep_tap
+      - logger.log:
+          format: "Executing Shield Command: %s"
+          args: [cmd.c_str()]
       - homeassistant.action:
           action: remote.send_command
           data:
@@ -338,6 +351,9 @@ script:
       activity: string
     then:
       - script.execute: beep_tap
+      - logger.log:
+          format: "Launching Shield Activity: %s"
+          args: [activity.c_str()]
       - homeassistant.action:
           action: remote.turn_on
           data:
@@ -594,10 +610,8 @@ display:
       rounded_rect(170, 438, 140, 85, 14);
       it.image(240, 480, id(icon_vol_down), ImageAlign::CENTER, black, white);
 
-      // Volume Up (+ icon)
       rounded_rect(324, 438, 140, 85, 14);
-      it.filled_rectangle(382, 478, 24, 4, black);
-      it.filled_rectangle(392, 468, 4, 24, black);
+      it.image(394, 480, id(icon_vol_up), ImageAlign::CENTER, black, white);
 
       it.horizontal_line(16, 538, 448, black);
 
@@ -655,23 +669,62 @@ touchscreen:
             id(touch_last_repeat_ms) = now;
             id(touch_repeat_cmd) = 0;
 
-            // Immediate touch action for repeatable D-pad directions
-            if (x >= 235 && x <= 377 && y >= 135 && y <= 230) {
+            const char* btn_name = "None";
+
+            // --- Full-Width D-Pad Matrix ---
+            if (x >= 150 && x <= 330 && y >= 48 && y <= 133) {
+              btn_name = "DPAD_UP";
               id(touch_repeat_cmd) = 1;
               id(shield_cmd).execute("DPAD_UP");
-            } else if (x >= 235 && x <= 377 && y >= 379 && y <= 474) {
+            } else if (x >= 150 && x <= 330 && y >= 241 && y <= 326) {
+              btn_name = "DPAD_DOWN";
               id(touch_repeat_cmd) = 2;
               id(shield_cmd).execute("DPAD_DOWN");
             } else if (x >= 16 && x <= 136 && y >= 97 && y <= 277) {
+              btn_name = "DPAD_LEFT";
               id(touch_repeat_cmd) = 3;
               id(shield_cmd).execute("DPAD_LEFT");
             } else if (x >= 344 && x <= 464 && y >= 97 && y <= 277) {
+              btn_name = "DPAD_RIGHT";
               id(touch_repeat_cmd) = 4;
               id(shield_cmd).execute("DPAD_RIGHT");
-            } else if (x >= 262 && x <= 350 && y >= 242 && y <= 367) {
+            } else if (x >= 148 && x <= 332 && y >= 142 && y <= 232) {
+              btn_name = "DPAD_CENTER";
               id(touch_repeat_cmd) = 5;
               id(shield_cmd).execute("DPAD_CENTER");
             }
+            // --- Navigation & Play/Pause Row (y: 340 to 425) ---
+            else if (y >= 340 && y <= 425) {
+              if (x >= 16 && x <= 156) btn_name = "NAV_BACK";
+              else if (x >= 170 && x <= 310) btn_name = "NAV_HOME";
+              else if (x >= 324 && x <= 464) btn_name = "NAV_PLAY_PAUSE";
+            }
+            // --- Volume Controls Row (y: 438 to 523) ---
+            else if (y >= 438 && y <= 523) {
+              if (x >= 16 && x <= 156) btn_name = "VOL_MUTE";
+              else if (x >= 170 && x <= 310) btn_name = "VOL_DOWN";
+              else if (x >= 324 && x <= 464) btn_name = "VOL_UP";
+            }
+            // --- 2x4 Media App Grid (y: 552 to 767) ---
+            else if (y >= 552 && y <= 767 && x >= 16 && x <= 462) {
+              int col = (x - 16) / 114; // app_w(104) + app_gap_x(10)
+              int row = (y - 552) / 115; // app_h(100) + app_gap_y(15)
+              if (col >= 0 && col < 4 && row >= 0 && row < 2) {
+                int idx = row * 4 + col;
+                const char* apps[8] = {
+                  "APP_YOUTUBE", "APP_JELLYFIN", "APP_CRUNCHYROLL", "APP_PRIME_VIDEO",
+                  "APP_DROPOUT", "APP_F1_TV", "APP_MAX", "APP_DISNEY_PLUS"
+                };
+                btn_name = apps[idx];
+              }
+            }
+
+            if (strcmp(btn_name, "None") != 0) {
+              ESP_LOGI("touch", "Button Pressed: %s (X=%d, Y=%d)", btn_name, x, y);
+            } else {
+              ESP_LOGD("touch", "Touch registered outside button bounds (X=%d, Y=%d)", x, y);
+            }
+
     on_release:
       then:
         - lambda: |-
@@ -680,47 +733,43 @@ touchscreen:
             const int y = id(touch_start_y);
             const uint32_t held_ms = millis() - id(touch_started_ms);
 
+            // Repeatable D-pad commands already executed on initial touch
             if (id(touch_repeat_cmd) == 0) {
-              // --- Left App Column Launchers (x: 18 to 122) ---
-              if (x >= 18 && x <= 122) {
-                int idx = (y - 45) / 92;
-                if (idx >= 0 && idx < 8) {
-                  switch(idx) {
+              // --- Navigation & Play/Pause Row ---
+              if (y >= 340 && y <= 425) {
+                if (x >= 16 && x <= 156) {
+                  if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
+                  else id(shield_cmd).execute("BACK");
+                } else if (x >= 170 && x <= 310) {
+                  if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
+                  else id(shield_cmd).execute("HOME");
+                } else if (x >= 324 && x <= 464) {
+                  id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
+                }
+              }
+              // --- Volume Controls Row ---
+              else if (y >= 438 && y <= 523) {
+                if (x >= 16 && x <= 156) id(denon_mute).execute();
+                else if (x >= 170 && x <= 310) id(denon_vol_down).execute();
+                else if (x >= 324 && x <= 464) id(denon_vol_up).execute();
+              }
+              // --- 2x4 Media App Grid ---
+              else if (y >= 552 && y <= 767 && x >= 16 && x <= 462) {
+                int col = (x - 16) / 114;
+                int row = (y - 552) / 115;
+                if (col >= 0 && col < 4 && row >= 0 && row < 2) {
+                  int idx = row * 4 + col;
+                  switch (idx) {
                     case 0: id(launch_app).execute("com.google.android.youtube.tv"); break;
                     case 1: id(launch_app).execute("org.jellyfin.androidtv"); break;
                     case 2: id(launch_app).execute("com.crunchyroll.crunchyroid"); break;
                     case 3: id(launch_app).execute("com.amazon.amazonvideo.livingroom"); break;
                     case 4: id(launch_app).execute("com.collegehumor.chdropout"); break;
                     case 5: id(launch_app).execute("com.formulaone.production"); break;
-                    case 6: id(launch_app).execute("com.wbd.stream"); break; // Max
+                    case 6: id(launch_app).execute("com.wbd.stream"); break;
                     case 7: id(launch_app).execute("com.disney.disneyplus"); break;
                   }
                 }
-              }
-
-              // --- Secondary Navigation (y: 45 to 120) ---
-              if (y >= 45 && y <= 120) {
-                if (x >= 155 && x <= 247) {
-                  if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
-                  else id(shield_cmd).execute("BACK");
-                } else if (x >= 260 && x <= 352) {
-                  if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
-                  else id(shield_cmd).execute("HOME");
-                } else if (x >= 365 && x <= 457) {
-                  id(shield_cmd).execute("MENU");
-                }
-              }
-
-              // --- Play/Pause Bar (y: 495 to 580) ---
-              if (x >= 155 && x <= 457 && y >= 495 && y <= 580) {
-                id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
-              }
-
-              // --- AVR Volume Row (y: 600 to 685) ---
-              if (y >= 600 && y <= 685) {
-                if (x >= 155 && x <= 247) id(denon_vol_down).execute();
-                else if (x >= 260 && x <= 352) id(denon_vol_up).execute();
-                else if (x >= 365 && x <= 457) id(denon_mute).execute();
               }
             }
 
