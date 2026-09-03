@@ -28,11 +28,35 @@ esphome:
         - pcf8563.read_time:
         - delay: 500ms
         - component.update: epaper_display
+    - priority: 300
+      then:
+        - logger.log: "Waiting for Home Assistant API connection..."
+        - wait_until:
+            condition:
+              api.connected:
+            timeout: 10s
+        - if:
+            condition:
+              api.connected:
+            then:
+              - logger.log: "Home Assistant API connected and subscribed."
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "HA API connection timed out. Commands may fail until connected."
+    - priority: 250
+      then:
+        - script.execute: beep_hello
   on_shutdown:
     then:
       - switch.turn_off: touch_power_enable
       - lambda: |-
-          gpio_set_level(GPIO_NUM_47, 0);
+          // Keep touch and latch rails powered
+          gpio_set_level(GPIO_NUM_42, 1);
+          gpio_set_level(GPIO_NUM_45, 1);
+          gpio_set_level(GPIO_NUM_46, 1);
+
+          gpio_set_level(GPIO_NUM_47, 0);  // Display off
           gpio_hold_en(GPIO_NUM_42);
           gpio_hold_en(GPIO_NUM_45);
           gpio_hold_en(GPIO_NUM_46);
@@ -243,6 +267,45 @@ globals:
 # =============================================================================
 
 script:
+  - id: beep_hello
+    then:
+      # Note 1: C6 (~1047 Hz)
+      - output.ledc.set_frequency:
+          id: buzzer_pwm
+          frequency: 1047Hz
+      - light.turn_on:
+          id: buzzer
+          brightness: 20%
+      - delay: 60ms
+      - light.turn_off: buzzer
+      - delay: 30ms
+
+      # Note 2: E6 (~1319 Hz)
+      - output.ledc.set_frequency:
+          id: buzzer_pwm
+          frequency: 1319Hz
+      - light.turn_on:
+          id: buzzer
+          brightness: 25%
+      - delay: 60ms
+      - light.turn_off: buzzer
+      - delay: 30ms
+
+      # Note 3: G6 (~1568 Hz)
+      - output.ledc.set_frequency:
+          id: buzzer_pwm
+          frequency: 1568Hz
+      - light.turn_on:
+          id: buzzer
+          brightness: 30%
+      - delay: 110ms
+      - light.turn_off: buzzer
+
+      # Reset base frequency back to default tap tone
+      - output.ledc.set_frequency:
+          id: buzzer_pwm
+          frequency: 1200Hz
+
   - id: beep_tap
     then:
       - light.turn_on:
@@ -358,8 +421,8 @@ script:
           action: remote.turn_on
           data:
             entity_id: ${shield_entity}
-          data_template:
-            activity: !lambda "return activity;"
+            activity: !lambda |-
+              return activity;
 
 # =============================================================================
 # Sensors & Trackers
@@ -381,9 +444,9 @@ sensor:
     id: denon_volume
     entity_id: ${denon_entity}
     attribute: volume_level
-    on_value:
-      then:
-        - component.update: epaper_display
+    # on_value:
+    #   then:
+    #     - component.update: epaper_display
 
   - platform: template
     id: battery_level
@@ -412,9 +475,9 @@ binary_sensor:
     id: denon_muted
     entity_id: ${denon_entity}
     attribute: is_volume_muted
-    on_state:
-      then:
-        - component.update: epaper_display
+    # on_state:
+    #   then:
+    #     - component.update: epaper_display
 
   # Physical Side Buttons
   - platform: gpio
@@ -760,14 +823,14 @@ touchscreen:
                 if (col >= 0 && col < 4 && row >= 0 && row < 2) {
                   int idx = row * 4 + col;
                   switch (idx) {
-                    case 0: id(launch_app).execute("com.google.android.youtube.tv"); break;
-                    case 1: id(launch_app).execute("org.jellyfin.androidtv"); break;
-                    case 2: id(launch_app).execute("com.crunchyroll.crunchyroid"); break;
-                    case 3: id(launch_app).execute("com.amazon.amazonvideo.livingroom"); break;
-                    case 4: id(launch_app).execute("com.collegehumor.chdropout"); break;
-                    case 5: id(launch_app).execute("com.formulaone.production"); break;
-                    case 6: id(launch_app).execute("com.wbd.stream"); break;
-                    case 7: id(launch_app).execute("com.disney.disneyplus"); break;
+                    case 0: id(launch_app).execute("https://www.youtube.com"); break;
+                    case 1: id(launch_app).execute("intent://#Intent;package=org.jellyfin.androidtv;end;"); break;
+                    case 2: id(launch_app).execute("crunchyroll://"); break;
+                    case 3: id(launch_app).execute("https://app.primevideo.com"); break;
+                    case 4: id(launch_app).execute("vhxdropout://"); break;
+                    case 5: id(launch_app).execute("intent://#Intent;package=com.formulaone.production;end;"); break;
+                    case 6: id(launch_app).execute("https://play.hbomax.com"); break;
+                    case 7: id(launch_app).execute("https://www.disneyplus.com"); break;
                   }
                 }
               }
