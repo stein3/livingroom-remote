@@ -371,7 +371,7 @@ sensor:
     name: "Battery Level"
     unit_of_measurement: "%"
     device_class: battery
-    update_interval: 60s
+    update_interval: 300s
     lambda: |-
       uint8_t reg = 0x2C;
       uint8_t raw[2] = {0, 0};
