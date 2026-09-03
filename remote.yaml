@@ -1,4 +1,4 @@
- substitutions:
+substitutions:
   device_name: reterminal-sticky
   friendly_name: "Living Room Remote"
   shield_entity: "remote.shield"
@@ -106,6 +106,7 @@ light:
     id: buzzer
     default_transition_length: 0s
 
+# GT911 Touch Screen (native 800x480 coordinate space)
 touchscreen:
   - platform: gt911
     i2c_id: i2c_touch
@@ -119,14 +120,17 @@ touchscreen:
 
 font:
   - file: "gfonts://Inter@600"
+    id: font_xs
+    size: 13
+  - file: "gfonts://Inter@600"
     id: font_sm
     size: 16
   - file: "gfonts://Inter@700"
     id: font_md
-    size: 22
+    size: 20
   - file: "gfonts://Material+Symbols+Outlined"
     id: font_icons
-    size: 34
+    size: 32
     glyphs:
       - "\ue5d8" # arrow_upward
       - "\ue5db" # arrow_downward
@@ -139,6 +143,13 @@ font:
       - "\ue050" # volume_up
       - "\ue04d" # volume_down
       - "\ue04f" # volume_off
+      - "\ue63c" # smart_display (YouTube)
+      - "\ue02c" # movie (Jellyfin / Disney)
+      - "\ue71c" # animation (Crunchyroll)
+      - "\ue04a" # video_library (Prime Video)
+      - "\ueb9d" # theater_comedy (Dropout)
+      - "\uebe7" # sports_score (F1)
+      - "\ueb7f" # tv (Max)
 
 time:
   - platform: pcf8563
@@ -359,36 +370,18 @@ binary_sensor:
     on_press:
       - script.execute: act_power_off_and_sleep
 
-  # Touch Zones: Navigation
-  - platform: touchscreen
-    id: touch_home
-    touchscreen_id: sticky_touch
-    x_min: 150
-    x_max: 260
-    y_min: 65
-    y_max: 130
-    on_click:
-      - min_length: 40ms
-        max_length: 450ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "HOME"
-      - min_length: 500ms
-        max_length: 3000ms
-        then:
-          - script.execute:
-              id: act_shield_hold_cmd
-              cmd: "HOME"
-              secs: "0.5"
+  # ===========================================================================
+  # RIGHT PANEL TOUCH ZONES (Remote Navigation & D-Pad: x: 300 to 780)
+  # ===========================================================================
 
+  # Navigation Row (y: 65 to 135)
   - platform: touchscreen
     id: touch_back
     touchscreen_id: sticky_touch
-    x_min: 25
-    x_max: 135
+    x_min: 300
+    x_max: 440
     y_min: 65
-    y_max: 130
+    y_max: 135
     on_click:
       - min_length: 40ms
         max_length: 450ms
@@ -402,15 +395,37 @@ binary_sensor:
           - script.execute:
               id: act_shield_hold_cmd
               cmd: "BACK"
+              secs: "0.5"
+
+  - platform: touchscreen
+    id: touch_home
+    touchscreen_id: sticky_touch
+    x_min: 460
+    x_max: 600
+    y_min: 65
+    y_max: 135
+    on_click:
+      - min_length: 40ms
+        max_length: 450ms
+        then:
+          - script.execute:
+              id: act_shield_cmd
+              cmd: "HOME"
+      - min_length: 500ms
+        max_length: 3000ms
+        then:
+          - script.execute:
+              id: act_shield_hold_cmd
+              cmd: "HOME"
               secs: "0.5"
 
   - platform: touchscreen
     id: touch_menu
     touchscreen_id: sticky_touch
-    x_min: 275
-    x_max: 385
+    x_min: 620
+    x_max: 760
     y_min: 65
-    y_max: 130
+    y_max: 135
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -423,14 +438,14 @@ binary_sensor:
                 command: MENU
                 delay_secs: "0.4"
 
-  # Touch Zones: D-Pad
+  # D-Pad Matrix (y: 155 to 375)
   - platform: touchscreen
     id: touch_up
     touchscreen_id: sticky_touch
-    x_min: 150
-    x_max: 260
-    y_min: 145
-    y_max: 215
+    x_min: 460
+    x_max: 600
+    y_min: 155
+    y_max: 225
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -442,10 +457,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_left
     touchscreen_id: sticky_touch
-    x_min: 35
-    x_max: 145
-    y_min: 225
-    y_max: 295
+    x_min: 320
+    x_max: 440
+    y_min: 235
+    y_max: 305
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -457,10 +472,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_center
     touchscreen_id: sticky_touch
-    x_min: 150
-    x_max: 260
-    y_min: 225
-    y_max: 295
+    x_min: 460
+    x_max: 600
+    y_min: 235
+    y_max: 305
     on_click:
       - min_length: 40ms
         max_length: 450ms
@@ -479,10 +494,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_right
     touchscreen_id: sticky_touch
-    x_min: 265
-    x_max: 375
-    y_min: 225
-    y_max: 295
+    x_min: 620
+    x_max: 740
+    y_min: 235
+    y_max: 305
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -494,10 +509,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_down
     touchscreen_id: sticky_touch
-    x_min: 150
-    x_max: 260
-    y_min: 305
-    y_max: 375
+    x_min: 460
+    x_max: 600
+    y_min: 315
+    y_max: 385
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -506,14 +521,14 @@ binary_sensor:
               id: act_shield_cmd
               cmd: "DPAD_DOWN"
 
-  # Touch Zones: Play/Pause & Audio Bar
+  # Media & Volume Bar (y: 395 to 465)
   - platform: touchscreen
     id: touch_play_pause
     touchscreen_id: sticky_touch
-    x_min: 25
-    x_max: 105
-    y_min: 390
-    y_max: 455
+    x_min: 300
+    x_max: 405
+    y_min: 395
+    y_max: 465
     on_click:
       - min_length: 40ms
         max_length: 450ms
@@ -532,10 +547,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_avr_down
     touchscreen_id: sticky_touch
-    x_min: 120
-    x_max: 200
-    y_min: 390
-    y_max: 455
+    x_min: 420
+    x_max: 525
+    y_min: 395
+    y_max: 465
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -545,10 +560,10 @@ binary_sensor:
   - platform: touchscreen
     id: touch_avr_up
     touchscreen_id: sticky_touch
-    x_min: 215
-    x_max: 295
-    y_min: 390
-    y_max: 455
+    x_min: 540
+    x_max: 645
+    y_min: 395
+    y_max: 465
     on_click:
       - min_length: 40ms
         max_length: 600ms
@@ -558,35 +573,27 @@ binary_sensor:
   - platform: touchscreen
     id: touch_avr_mute
     touchscreen_id: sticky_touch
-    x_min: 310
-    x_max: 390
-    y_min: 390
-    y_max: 455
+    x_min: 660
+    x_max: 765
+    y_min: 395
+    y_max: 465
     on_click:
       - min_length: 40ms
         max_length: 600ms
         then:
           - script.execute: act_denon_mute
 
-  # Touch Zones: App Launchers
-  - platform: touchscreen
-    id: app_netflix
-    touchscreen_id: sticky_touch
-    x_min: 435
-    x_max: 600
-    y_min: 75
-    y_max: 155
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.netflix.ninja"
+  # ===========================================================================
+  # LEFT COLUMN TOUCH ZONES (8 Apps in 2x4 Grid: x: 20 to 260)
+  # ===========================================================================
 
+  # Row 0 (y: 65 to 155)
   - platform: touchscreen
     id: app_youtube
     touchscreen_id: sticky_touch
-    x_min: 610
-    x_max: 775
-    y_min: 75
+    x_min: 20
+    x_max: 130
+    y_min: 65
     y_max: 155
     on_press:
       - script.execute:
@@ -596,22 +603,23 @@ binary_sensor:
   - platform: touchscreen
     id: app_jellyfin
     touchscreen_id: sticky_touch
-    x_min: 435
-    x_max: 600
-    y_min: 170
-    y_max: 250
+    x_min: 145
+    x_max: 255
+    y_min: 65
+    y_max: 155
     on_press:
       - script.execute:
           id: launch_app
           activity: "org.jellyfin.androidtv"
 
+  # Row 1 (y: 168 to 258)
   - platform: touchscreen
     id: app_crunchyroll
     touchscreen_id: sticky_touch
-    x_min: 610
-    x_max: 775
-    y_min: 170
-    y_max: 250
+    x_min: 20
+    x_max: 130
+    y_min: 168
+    y_max: 258
     on_press:
       - script.execute:
           id: launch_app
@@ -620,22 +628,23 @@ binary_sensor:
   - platform: touchscreen
     id: app_prime
     touchscreen_id: sticky_touch
-    x_min: 435
-    x_max: 600
-    y_min: 265
-    y_max: 345
+    x_min: 145
+    x_max: 255
+    y_min: 168
+    y_max: 258
     on_press:
       - script.execute:
           id: launch_app
           activity: "com.amazon.amazonvideo.livingroom"
 
+  # Row 2 (y: 271 to 361)
   - platform: touchscreen
     id: app_dropout
     touchscreen_id: sticky_touch
-    x_min: 610
-    x_max: 775
-    y_min: 265
-    y_max: 345
+    x_min: 20
+    x_max: 130
+    y_min: 271
+    y_max: 361
     on_press:
       - script.execute:
           id: launch_app
@@ -644,29 +653,42 @@ binary_sensor:
   - platform: touchscreen
     id: app_f1
     touchscreen_id: sticky_touch
-    x_min: 435
-    x_max: 600
-    y_min: 360
-    y_max: 440
+    x_min: 145
+    x_max: 255
+    y_min: 271
+    y_max: 361
     on_press:
       - script.execute:
           id: launch_app
           activity: "com.formulaone.production"
 
+  # Row 3 (y: 374 to 464)
+  - platform: touchscreen
+    id: app_hbo
+    touchscreen_id: sticky_touch
+    x_min: 20
+    x_max: 130
+    y_min: 374
+    y_max: 464
+    on_press:
+      - script.execute:
+          id: launch_app
+          activity: "com.wbd.stream"
+
   - platform: touchscreen
     id: app_disney
     touchscreen_id: sticky_touch
-    x_min: 610
-    x_max: 775
-    y_min: 360
-    y_max: 440
+    x_min: 145
+    x_max: 255
+    y_min: 374
+    y_max: 464
     on_press:
       - script.execute:
           id: launch_app
           activity: "com.disney.disneyplus"
 
 # =============================================================================
-# E-Paper Canvas Rendering (800 x 480)
+# E-Paper Canvas Rendering (Native 800 x 480 Hardware Grid)
 # =============================================================================
 
 display:
@@ -675,87 +697,93 @@ display:
     model: seeed-reterminal-sticky
     update_interval: 300s
     lambda: |-
-      // Top Status Bar
+      // --- Top Status Bar ---
       auto now = id(rtc_time).now();
       if (now.is_valid()) {
-        it.strftime(25, 20, id(font_sm), COLOR_OFF, TextAlign::TOP_LEFT, "%H:%M", now);
+        it.strftime(20, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_LEFT, "%H:%M", now);
       }
       if (id(temp_sensor).has_state()) {
-        it.printf(205, 20, id(font_sm), COLOR_OFF, TextAlign::TOP_CENTER, "%.1f°C", id(temp_sensor).state);
+        it.printf(140, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_LEFT, "%.1f°C", id(temp_sensor).state);
       }
-      
+
       int vol_pct = id(denon_volume).has_state() ? static_cast<int>(id(denon_volume).state * 100.0f) : 0;
       bool is_mute = id(denon_muted).state;
       if (is_mute) {
-        it.printf(390, 20, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: MUTED");
+        it.printf(660, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: MUTED");
       } else {
-        it.printf(390, 20, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: %d%%", vol_pct);
+        it.printf(660, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: %d%%", vol_pct);
       }
 
       if (!isnan(id(battery_level).state)) {
-        it.printf(775, 20, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "BAT: %.0f%%", id(battery_level).state);
+        it.printf(780, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "BAT: %.0f%%", id(battery_level).state);
       }
-      it.horizontal_line(20, 48, 760, COLOR_OFF);
+      it.horizontal_line(20, 46, 760, COLOR_OFF);
 
-      // Center Splitter
-      it.vertical_line(415, 58, 405, COLOR_OFF);
+      // Vertical Divider separating Left App Grid from Right Remote Panel
+      it.vertical_line(280, 56, 414, COLOR_OFF);
 
-      // Navigation Row
-      it.rectangle(25, 65, 110, 65, COLOR_OFF);
-      it.printf(80, 97, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4");
-
-      it.rectangle(150, 65, 110, 65, COLOR_OFF);
-      it.printf(205, 97, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue88a");
-
-      it.rectangle(275, 65, 110, 65, COLOR_OFF);
-      it.printf(330, 97, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d2");
-
-      // D-Pad
-      it.rectangle(150, 145, 110, 70, COLOR_OFF);
-      it.printf(205, 180, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d8");
-
-      it.rectangle(35, 225, 110, 70, COLOR_OFF);
-      it.printf(90, 260, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4");
-
-      it.rectangle(150, 225, 110, 70, COLOR_OFF);
-      it.printf(205, 260, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue836");
-
-      it.rectangle(265, 225, 110, 70, COLOR_OFF);
-      it.printf(320, 260, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c8");
-
-      it.rectangle(150, 305, 110, 70, COLOR_OFF);
-      it.printf(205, 340, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5db");
-
-      // Bottom Bar
-      it.rectangle(25, 390, 80, 65, COLOR_OFF);
-      it.printf(65, 422, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue037");
-
-      it.rectangle(120, 390, 80, 65, COLOR_OFF);
-      it.printf(160, 422, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04d");
-
-      it.rectangle(215, 390, 80, 65, COLOR_OFF);
-      it.printf(255, 422, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue050");
-
-      it.rectangle(310, 390, 80, 65, COLOR_OFF);
-      it.printf(350, 422, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04f");
-
-      // App Launchers Grid
-      it.printf(435, 50, id(font_sm), COLOR_OFF, "STREAMING APPS");
-
-      const char* app_names[8] = {
-        "Netflix", "YouTube",
-        "Jellyfin", "Crunchyroll",
-        "Prime Video", "Dropout",
-        "F1 TV", "Disney+"
+      // --- Left Column: 8 Streaming App Icon Tiles (2 cols x 4 rows) ---
+      struct AppTile {
+        const char* icon;
+        const char* label;
+      };
+      const AppTile apps[8] = {
+        {"\ue63c", "YouTube"},
+        {"\ue02c", "Jellyfin"},
+        {"\ue71c", "Crunchy"},
+        {"\ue04a", "Prime"},
+        {"\ueb9d", "Dropout"},
+        {"\uebe7", "F1 TV"},
+        {"\ueb7f", "Max"},
+        {"\ue02c", "Disney+"}
       };
 
-      const int app_x[2] = {435, 610};
-      const int app_w = 165;
-      const int app_h = 80;
-
       for (int i = 0; i < 8; i++) {
-        int ax = app_x[i % 2];
-        int ay = 75 + (i / 2) * 95;
-        it.rectangle(ax, ay, app_w, app_h, COLOR_OFF);
-        it.printf(ax + (app_w / 2), ay + (app_h / 2), id(font_md), COLOR_OFF, TextAlign::CENTER, "%s", app_names[i]);
-      } 
+        int col = i % 2;
+        int row = i / 2;
+        int ax = 20 + col * 125;
+        int ay = 65 + row * 103;
+        it.rectangle(ax, ay, 110, 90, COLOR_OFF);
+        it.printf(ax + 55, ay + 32, id(font_icons), COLOR_OFF, TextAlign::CENTER, "%s", apps[i].icon);
+        it.printf(ax + 55, ay + 68, id(font_xs), COLOR_OFF, TextAlign::CENTER, "%s", apps[i].label);
+      }
+
+      // --- Right Panel: Navigation Row (y: 65 to 135) ---
+      it.rectangle(300, 65, 140, 70, COLOR_OFF);
+      it.printf(370, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4"); // Back
+
+      it.rectangle(460, 65, 140, 70, COLOR_OFF);
+      it.printf(530, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue88a"); // Home
+
+      it.rectangle(620, 65, 140, 70, COLOR_OFF);
+      it.printf(690, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d2"); // Menu
+
+      // --- Right Panel: D-Pad Matrix (y: 155 to 385) ---
+      // Up
+      it.rectangle(460, 155, 140, 70, COLOR_OFF);
+      it.printf(530, 190, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d8");
+      // Left
+      it.rectangle(320, 235, 120, 70, COLOR_OFF);
+      it.printf(380, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4");
+      // Center
+      it.rectangle(460, 235, 140, 70, COLOR_OFF);
+      it.printf(530, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue836");
+      // Right
+      it.rectangle(620, 235, 120, 70, COLOR_OFF);
+      it.printf(680, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c8");
+      // Down
+      it.rectangle(460, 315, 140, 70, COLOR_OFF);
+      it.printf(530, 350, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5db");
+
+      // --- Right Panel: Media & Volume Controls (y: 395 to 465) ---
+      it.rectangle(300, 395, 105, 70, COLOR_OFF);
+      it.printf(352, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue037"); // Play/Pause
+
+      it.rectangle(420, 395, 105, 70, COLOR_OFF);
+      it.printf(472, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04d"); // Vol-
+
+      it.rectangle(540, 395, 105, 70, COLOR_OFF);
+      it.printf(592, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue050"); // Vol+
+
+      it.rectangle(660, 395, 105, 70, COLOR_OFF);
+      it.printf(712, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04f"); // Mute
