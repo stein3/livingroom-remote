@@ -8,31 +8,48 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   on_boot:
-    priority: 600
+    - priority: 900
+      then:
+        - lambda: |-
+            gpio_deep_sleep_hold_dis();
+            gpio_hold_dis(GPIO_NUM_42);
+            gpio_hold_dis(GPIO_NUM_45);
+            gpio_hold_dis(GPIO_NUM_46);
+            gpio_hold_dis(GPIO_NUM_47);
+    - priority: 600
+      then:
+        - output.turn_on: pwr_hold
+        - output.turn_on: pwr_lock
+        - switch.turn_on: touch_power_enable
+        - pcf8563.read_time:
+        - delay: 500ms
+        - component.update: epaper_display
+  on_shutdown:
     then:
-      - output.turn_on: pwr_hold
-      - output.turn_on: pwr_lock
-      - switch.turn_on: touch_power_enable
-      - pcf8563.read_time:
+      - switch.turn_off: touch_power_enable
+      - lambda: |-
+          gpio_set_level(GPIO_NUM_47, 0);
+          gpio_hold_en(GPIO_NUM_42);
+          gpio_hold_en(GPIO_NUM_45);
+          gpio_hold_en(GPIO_NUM_46);
+          gpio_hold_en(GPIO_NUM_47);
+          gpio_deep_sleep_hold_en();
 
 esp32:
   board: esp32-s3-devkitc-1
   variant: ESP32S3
   flash_size: 32MB
   framework:
-    type: arduino
+    type: esp-idf
     advanced:
       enable_idf_experimental_features: true
 
-deep_sleep:
-  id: sticky_deep_sleep
-  wakeup_pin:
-    number: GPIO4
-    inverted: true
-    mode: INPUT_PULLUP
-    allow_other_uses: true
+psram:
+  mode: octal
+  speed: 80MHz
 
 logger:
+  level: DEBUG
   hardware_uart: UART0
 
 api:
@@ -57,47 +74,50 @@ captive_portal:
 # =============================================================================
 
 spi:
+  id: display_spi
   clk_pin: GPIO13
   mosi_pin: GPIO14
-  miso_pin: GPIO12
 
 i2c:
-  - id: i2c_sensor
-    scl: GPIO0
+  - id: sensor_i2c
+    scl:
+      number: GPIO0
+      ignore_strapping_warning: true
     sda: GPIO1
     frequency: 400kHz
-  - id: i2c_touch
+
+  - id: touch_i2c
     scl: GPIO2
-    sda: GPIO3
+    sda:
+      number: GPIO3
+      ignore_strapping_warning: true
     frequency: 100kHz
 
 output:
   - platform: gpio
-    pin: GPIO45
     id: pwr_hold
+    pin:
+      number: GPIO45
+      ignore_strapping_warning: true
 
   - platform: gpio
-    pin: GPIO46
     id: pwr_lock
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true
 
   - platform: ledc
     pin: GPIO48
     id: buzzer_pwm
     frequency: 1200Hz
 
-  - platform: gpio
-    pin:
-      number: GPIO39
-      inverted: true
-    id: charge_enable
-
 switch:
   - platform: gpio
-    pin: GPIO42
     id: touch_power_enable
     internal: true
     restore_mode: ALWAYS_ON
     setup_priority: 1100
+    pin: GPIO42
 
 light:
   - platform: monochromatic
@@ -106,100 +126,99 @@ light:
     id: buzzer
     default_transition_length: 0s
 
-# GT911 Touch Screen (native 800x480 coordinate space)
-touchscreen:
-  - platform: gt911
-    i2c_id: i2c_touch
-    id: sticky_touch
-    interrupt_pin: GPIO21
-    reset_pin: GPIO41
-
 # =============================================================================
-# Fonts & Icons
+# Rasterized Binary Vector Images (1-bit crisp monochrome)
 # =============================================================================
 
-font:
-  - file: "gfonts://Inter@600"
-    id: font_xs
-    size: 13
-  - file: "gfonts://Inter@600"
-    id: font_sm
-    size: 16
-  - file: "gfonts://Inter@700"
-    id: font_md
-    size: 20
-  - file: "gfonts://Material+Symbols+Outlined"
-    id: font_icons
-    size: 32
-    glyphs:
-      - "\ue5d8" # arrow_upward
-      - "\ue5db" # arrow_downward
-      - "\ue5c4" # arrow_back
-      - "\ue5c8" # arrow_forward
-      - "\ue836" # radio_button_unchecked
-      - "\ue88a" # home
-      - "\ue5d2" # menu
-      - "\ue037" # play_arrow
-      - "\ue050" # volume_up
-      - "\ue04d" # volume_down
-      - "\ue04f" # volume_off
-      - "\ue63c" # smart_display (YouTube)
-      - "\ue02c" # movie (Jellyfin / Disney)
-      - "\ue71c" # animation (Crunchyroll)
-      - "\ue04a" # video_library (Prime Video)
-      - "\ueb9d" # theater_comedy (Dropout)
-      - "\uebe7" # sports_score (F1)
-      - "\ueb7f" # tv (Max)
+image:
+  - platform: file
+    defaults:
+      type: BINARY
+      transparency: chroma_key
+      resize: 48x48
+    files:
+      - id: icon_back
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/arrow-uturn-left.svg
+      - id: icon_home
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/home.svg
+      - id: icon_menu
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/bars-3.svg
+      - id: icon_up
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/chevron-up.svg
+      - id: icon_down
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/chevron-down.svg
+      - id: icon_left
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/chevron-left.svg
+      - id: icon_right
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/chevron-right.svg
+      - id: icon_select
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/cursor-arrow-ripple.svg
+      - id: icon_play_pause
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/play-pause.svg
+      - id: icon_vol_down
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-wave.svg
+        resize: 38x38
+      - id: icon_vol_mute
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-x-mark.svg
+        resize: 38x38
 
-time:
-  - platform: pcf8563
-    i2c_id: i2c_sensor
-    id: rtc_time
-    address: 0x51
-    update_interval: never
-  - platform: homeassistant
-    on_time_sync:
-      then:
-        - pcf8563.write_time:
-
-# =============================================================================
-# Sensors
-# =============================================================================
-
-sensor:
-  - platform: homeassistant
-    id: denon_volume
-    entity_id: ${denon_entity}
-    attribute: volume_level
-    on_value:
-      then:
-        - component.update: epaper_display
-
-  - platform: sht4x
-    i2c_id: i2c_sensor
-    address: 0x44
-    temperature:
-      name: "Living Room Temp"
-      id: temp_sensor
-    humidity:
-      name: "Living Room Humidity"
-      id: hum_sensor
-    update_interval: 120s
-
-  - platform: template
-    id: battery_level
-    name: "Battery Level"
-    unit_of_measurement: "%"
-    device_class: battery
-    update_interval: 60s
-    lambda: |-
-      uint8_t reg = 0x2C;
-      uint8_t raw[2] = {0, 0};
-      if (id(i2c_sensor).write_readv(0x55, &reg, 1, raw, 2) != esphome::i2c::ERROR_OK) return NAN;
-      return static_cast<float>(static_cast<uint16_t>(raw[0]) | (static_cast<uint16_t>(raw[1]) << 8));
+  # Streaming Service Provider Logos (48x48 to 64x40)
+  - platform: file
+    defaults:
+      type: BINARY
+      transparency: chroma_key
+    files:
+      - id: logo_youtube
+        file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/youtube.svg
+        resize: 48x48
+      - id: logo_jellyfin
+        file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/jellyfin.svg
+        resize: 48x48
+      - id: logo_crunchyroll
+        file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/crunchyroll.svg
+        resize: 48x48
+      - id: logo_prime
+        file: https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg
+        resize: 56x36
+      - id: logo_f1
+        file: https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/f1.svg
+        resize: 56x28
+      - id: logo_max
+        file: https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg
+        resize: 60x40
+      - id: logo_disney
+        file: https://raw.githubusercontent.com/CitizenRacer/BasementRemote/24dca1bc7c561f91ecffb76bb930284a7dd8c159/assets/disney-d.png
+        resize: 46x46
+      - id: logo_dropout
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/film.svg
+        resize: 46x46
 
 # =============================================================================
-# Action Scripts
+# State Globals
+# =============================================================================
+
+globals:
+  - id: touch_active
+    type: bool
+    initial_value: "false"
+  - id: touch_start_x
+    type: int
+    initial_value: "-1"
+  - id: touch_start_y
+    type: int
+    initial_value: "-1"
+  - id: touch_started_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: touch_last_repeat_ms
+    type: uint32_t
+    initial_value: "0"
+  - id: touch_repeat_cmd
+    type: int
+    initial_value: "0" # 1=Up, 2=Down, 3=Left, 4=Right, 5=Center
+
+# =============================================================================
+# Action Scripts (Shield & Denon)
 # =============================================================================
 
 script:
@@ -208,7 +227,7 @@ script:
       - light.turn_on:
           id: buzzer
           brightness: 15%
-      - delay: 20ms
+      - delay: 18ms
       - light.turn_off: buzzer
 
   - id: beep_double
@@ -246,11 +265,10 @@ script:
                 data:
                   entity_id: ${denon_entity}
       - delay: 250ms
-      - switch.turn_off: touch_power_enable
       - deep_sleep.enter: sticky_deep_sleep
 
   # Shield Commands
-  - id: act_shield_cmd
+  - id: shield_cmd
     parameters:
       cmd: string
     then:
@@ -262,7 +280,7 @@ script:
           data_template:
             command: !lambda "return cmd;"
 
-  - id: act_shield_hold_cmd
+  - id: shield_hold_cmd
     parameters:
       cmd: string
       secs: string
@@ -277,7 +295,7 @@ script:
             hold_secs: !lambda "return secs;"
 
   # Denon Controls
-  - id: act_denon_vol_up
+  - id: denon_vol_up
     then:
       - script.execute: beep_tap
       - homeassistant.action:
@@ -285,7 +303,7 @@ script:
           data:
             entity_id: ${denon_entity}
 
-  - id: act_denon_vol_down
+  - id: denon_vol_down
     then:
       - script.execute: beep_tap
       - homeassistant.action:
@@ -293,7 +311,7 @@ script:
           data:
             entity_id: ${denon_entity}
 
-  - id: act_denon_mute
+  - id: denon_mute
     then:
       - script.execute: beep_tap
       - homeassistant.action:
@@ -317,11 +335,44 @@ script:
             activity: !lambda "return activity;"
 
 # =============================================================================
-# Binary Sensors (HA States, Physical Buttons, Touch Virtual Zones)
+# Sensors & Trackers
 # =============================================================================
 
+time:
+  - platform: pcf8563
+    i2c_id: sensor_i2c
+    id: rtc_time
+    address: 0x51
+    update_interval: never
+  - platform: homeassistant
+    on_time_sync:
+      then:
+        - pcf8563.write_time:
+
+sensor:
+  - platform: homeassistant
+    id: denon_volume
+    entity_id: ${denon_entity}
+    attribute: volume_level
+    on_value:
+      then:
+        - component.update: epaper_display
+
+  - platform: template
+    id: battery_level
+    name: "Battery Level"
+    unit_of_measurement: "%"
+    device_class: battery
+    update_interval: 60s
+    lambda: |-
+      uint8_t reg = 0x2C;
+      uint8_t raw[2] = {0, 0};
+      auto err = id(sensor_i2c).write_readv(0x55, &reg, 1, raw, 2);
+      if (err != esphome::i2c::ERROR_OK) return NAN;
+      uint16_t val = static_cast<uint16_t>(raw[0]) | (static_cast<uint16_t>(raw[1]) << 8);
+      return (val > 100) ? NAN : static_cast<float>(val);
+
 binary_sensor:
-  # HA Entities
   - platform: homeassistant
     id: shield_is_on
     entity_id: ${shield_entity}
@@ -338,452 +389,311 @@ binary_sensor:
       then:
         - component.update: epaper_display
 
-  # Side Buttons
+  # Physical Side Buttons
   - platform: gpio
+    id: button_up
+    name: "Physical Vol Up"
     pin:
       number: GPIO5
-      mode: INPUT_PULLUP
+      mode:
+        input: true
+        pullup: true
       inverted: true
-    id: side_btn_vol_up
-    name: "Physical Vol Up"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
     on_press:
-      - script.execute: act_denon_vol_up
+      - script.execute: denon_vol_up
+      - delay: 400ms
+      - while:
+          condition:
+            binary_sensor.is_on: button_up
+          then:
+            - script.execute: denon_vol_up
+            - delay: 150ms
 
   - platform: gpio
+    id: button_down
+    name: "Physical Vol Down"
     pin:
       number: GPIO6
-      mode: INPUT_PULLUP
+      mode:
+        input: true
+        pullup: true
       inverted: true
-    id: side_btn_vol_down
-    name: "Physical Vol Down"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
     on_press:
-      - script.execute: act_denon_vol_down
+      - script.execute: denon_vol_down
+      - delay: 400ms
+      - while:
+          condition:
+            binary_sensor.is_on: button_down
+          then:
+            - script.execute: denon_vol_down
+            - delay: 150ms
 
   - platform: gpio
+    id: button_ai_power
+    name: "AI Power / Sleep Button"
     pin:
       number: GPIO4
-      mode: INPUT_PULLUP
-      inverted: true
       allow_other_uses: true
-    id: side_btn_power_sleep
-    name: "Power Off & Sleep"
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
     on_press:
       - script.execute: act_power_off_and_sleep
 
-  # ===========================================================================
-  # RIGHT PANEL TOUCH ZONES (Remote Navigation & D-Pad: x: 300 to 780)
-  # ===========================================================================
+deep_sleep:
+  id: sticky_deep_sleep
+  wakeup_pin:
+    number: GPIO4
+    allow_other_uses: true
+    inverted: true
+    mode:
+      input: true
+      pullup: true
+  wakeup_pin_mode: KEEP_AWAKE
 
-  # Navigation Row (y: 65 to 135)
-  - platform: touchscreen
-    id: touch_back
-    touchscreen_id: sticky_touch
-    x_min: 300
-    x_max: 440
-    y_min: 65
-    y_max: 135
-    on_click:
-      - min_length: 40ms
-        max_length: 450ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "BACK"
-      - min_length: 500ms
-        max_length: 3000ms
-        then:
-          - script.execute:
-              id: act_shield_hold_cmd
-              cmd: "BACK"
-              secs: "0.5"
+# Repeat-while-held interval for on-screen touch D-Pad
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          if (!id(touch_active) || id(touch_repeat_cmd) == 0) return;
+          const uint32_t now = millis();
+          if ((now - id(touch_started_ms)) < 450 || (now - id(touch_last_repeat_ms)) < 150) return;
+          id(touch_last_repeat_ms) = now;
 
-  - platform: touchscreen
-    id: touch_home
-    touchscreen_id: sticky_touch
-    x_min: 460
-    x_max: 600
-    y_min: 65
-    y_max: 135
-    on_click:
-      - min_length: 40ms
-        max_length: 450ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "HOME"
-      - min_length: 500ms
-        max_length: 3000ms
-        then:
-          - script.execute:
-              id: act_shield_hold_cmd
-              cmd: "HOME"
-              secs: "0.5"
-
-  - platform: touchscreen
-    id: touch_menu
-    touchscreen_id: sticky_touch
-    x_min: 620
-    x_max: 760
-    y_min: 65
-    y_max: 135
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute: beep_tap
-          - homeassistant.action:
-              action: remote.send_command
-              data:
-                entity_id: ${shield_entity}
-                command: MENU
-                delay_secs: "0.4"
-
-  # D-Pad Matrix (y: 155 to 375)
-  - platform: touchscreen
-    id: touch_up
-    touchscreen_id: sticky_touch
-    x_min: 460
-    x_max: 600
-    y_min: 155
-    y_max: 225
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "DPAD_UP"
-
-  - platform: touchscreen
-    id: touch_left
-    touchscreen_id: sticky_touch
-    x_min: 320
-    x_max: 440
-    y_min: 235
-    y_max: 305
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "DPAD_LEFT"
-
-  - platform: touchscreen
-    id: touch_center
-    touchscreen_id: sticky_touch
-    x_min: 460
-    x_max: 600
-    y_min: 235
-    y_max: 305
-    on_click:
-      - min_length: 40ms
-        max_length: 450ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "DPAD_CENTER"
-      - min_length: 500ms
-        max_length: 3000ms
-        then:
-          - script.execute:
-              id: act_shield_hold_cmd
-              cmd: "DPAD_CENTER"
-              secs: "0.5"
-
-  - platform: touchscreen
-    id: touch_right
-    touchscreen_id: sticky_touch
-    x_min: 620
-    x_max: 740
-    y_min: 235
-    y_max: 305
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "DPAD_RIGHT"
-
-  - platform: touchscreen
-    id: touch_down
-    touchscreen_id: sticky_touch
-    x_min: 460
-    x_max: 600
-    y_min: 315
-    y_max: 385
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "DPAD_DOWN"
-
-  # Media & Volume Bar (y: 395 to 465)
-  - platform: touchscreen
-    id: touch_play_pause
-    touchscreen_id: sticky_touch
-    x_min: 300
-    x_max: 405
-    y_min: 395
-    y_max: 465
-    on_click:
-      - min_length: 40ms
-        max_length: 450ms
-        then:
-          - script.execute:
-              id: act_shield_cmd
-              cmd: "MEDIA_PLAY_PAUSE"
-      - min_length: 500ms
-        max_length: 3000ms
-        then:
-          - script.execute:
-              id: act_shield_hold_cmd
-              cmd: "HOME"
-              secs: "0.5"
-
-  - platform: touchscreen
-    id: touch_avr_down
-    touchscreen_id: sticky_touch
-    x_min: 420
-    x_max: 525
-    y_min: 395
-    y_max: 465
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute: act_denon_vol_down
-
-  - platform: touchscreen
-    id: touch_avr_up
-    touchscreen_id: sticky_touch
-    x_min: 540
-    x_max: 645
-    y_min: 395
-    y_max: 465
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute: act_denon_vol_up
-
-  - platform: touchscreen
-    id: touch_avr_mute
-    touchscreen_id: sticky_touch
-    x_min: 660
-    x_max: 765
-    y_min: 395
-    y_max: 465
-    on_click:
-      - min_length: 40ms
-        max_length: 600ms
-        then:
-          - script.execute: act_denon_mute
-
-  # ===========================================================================
-  # LEFT COLUMN TOUCH ZONES (8 Apps in 2x4 Grid: x: 20 to 260)
-  # ===========================================================================
-
-  # Row 0 (y: 65 to 155)
-  - platform: touchscreen
-    id: app_youtube
-    touchscreen_id: sticky_touch
-    x_min: 20
-    x_max: 130
-    y_min: 65
-    y_max: 155
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.google.android.youtube.tv"
-
-  - platform: touchscreen
-    id: app_jellyfin
-    touchscreen_id: sticky_touch
-    x_min: 145
-    x_max: 255
-    y_min: 65
-    y_max: 155
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "org.jellyfin.androidtv"
-
-  # Row 1 (y: 168 to 258)
-  - platform: touchscreen
-    id: app_crunchyroll
-    touchscreen_id: sticky_touch
-    x_min: 20
-    x_max: 130
-    y_min: 168
-    y_max: 258
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.crunchyroll.crunchyroid"
-
-  - platform: touchscreen
-    id: app_prime
-    touchscreen_id: sticky_touch
-    x_min: 145
-    x_max: 255
-    y_min: 168
-    y_max: 258
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.amazon.amazonvideo.livingroom"
-
-  # Row 2 (y: 271 to 361)
-  - platform: touchscreen
-    id: app_dropout
-    touchscreen_id: sticky_touch
-    x_min: 20
-    x_max: 130
-    y_min: 271
-    y_max: 361
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.collegehumor.chdropout"
-
-  - platform: touchscreen
-    id: app_f1
-    touchscreen_id: sticky_touch
-    x_min: 145
-    x_max: 255
-    y_min: 271
-    y_max: 361
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.formulaone.production"
-
-  # Row 3 (y: 374 to 464)
-  - platform: touchscreen
-    id: app_hbo
-    touchscreen_id: sticky_touch
-    x_min: 20
-    x_max: 130
-    y_min: 374
-    y_max: 464
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.wbd.stream"
-
-  - platform: touchscreen
-    id: app_disney
-    touchscreen_id: sticky_touch
-    x_min: 145
-    x_max: 255
-    y_min: 374
-    y_max: 464
-    on_press:
-      - script.execute:
-          id: launch_app
-          activity: "com.disney.disneyplus"
+          switch (id(touch_repeat_cmd)) {
+            case 1: id(shield_cmd).execute("DPAD_UP"); break;
+            case 2: id(shield_cmd).execute("DPAD_DOWN"); break;
+            case 3: id(shield_cmd).execute("DPAD_LEFT"); break;
+            case 4: id(shield_cmd).execute("DPAD_RIGHT"); break;
+            case 5: id(shield_cmd).execute("DPAD_CENTER"); break;
+          }
 
 # =============================================================================
-# E-Paper Canvas Rendering (Native 800 x 480 Hardware Grid)
+# E-Paper Canvas Rendering (480 x 800 Portrait)
 # =============================================================================
 
 display:
   - platform: epaper_spi
     id: epaper_display
-    model: seeed-reterminal-sticky
-    update_interval: 300s
+    model: Seeed-reTerminal-Sticky
+    spi_id: display_spi
+    rotation: 90
+    update_interval: 10min
+    full_update_every: 1
     lambda: |-
+      const auto black = Color(0, 0, 0);
+      const auto white = Color(255, 255, 255);
+      const int w = it.get_width();
+      const int h = it.get_height();
+
+      auto fill_rounded_rect = [&](int x, int y, int width, int height, int radius, Color color) {
+        const int r = std::min(radius, std::min(width, height) / 2);
+        it.filled_rectangle(x + r, y, width - 2 * r, height, color);
+        it.filled_rectangle(x, y + r, width, height - 2 * r, color);
+        it.filled_circle(x + r, y + r, r, color);
+        it.filled_circle(x + width - r - 1, y + r, r, color);
+        it.filled_circle(x + r, y + height - r - 1, r, color);
+        it.filled_circle(x + width - r - 1, y + height - r - 1, r, color);
+      };
+      auto rounded_rect = [&](int x, int y, int width, int height, int radius) {
+        fill_rounded_rect(x, y, width, height, radius, black);
+        fill_rounded_rect(x + 2, y + 2, width - 4, height - 4, std::max(0, radius - 2), white);
+      };
+
+      it.fill(white);
+      it.rectangle(0, 0, w, h, black);
+
       // --- Top Status Bar ---
-      auto now = id(rtc_time).now();
-      if (now.is_valid()) {
-        it.strftime(20, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_LEFT, "%H:%M", now);
-      }
-      if (id(temp_sensor).has_state()) {
-        it.printf(140, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_LEFT, "%.1f°C", id(temp_sensor).state);
-      }
+      // Battery glyph
+      it.rectangle(440, 14, 24, 12, black);
+      it.filled_rectangle(464, 17, 3, 6, black);
+      int b_pct = !isnan(id(battery_level).state) ? id(battery_level).state : 50;
+      int fill_w = (18 * b_pct) / 100;
+      if (fill_w > 0) it.filled_rectangle(443, 16, fill_w, 8, black);
 
-      int vol_pct = id(denon_volume).has_state() ? static_cast<int>(id(denon_volume).state * 100.0f) : 0;
-      bool is_mute = id(denon_muted).state;
-      if (is_mute) {
-        it.printf(660, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: MUTED");
+      // Volume readout bar
+      int v_pct = id(denon_volume).has_state() ? static_cast<int>(id(denon_volume).state * 100.0f) : 0;
+      bool is_muted = id(denon_muted).state;
+      it.rectangle(18, 14, 110, 12, black);
+      if (is_muted) {
+        it.line(18, 14, 128, 26, black);
+        it.line(18, 26, 128, 14, black);
       } else {
-        it.printf(660, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "AVR: %d%%", vol_pct);
+        int v_w = (106 * v_pct) / 100;
+        if (v_w > 0) it.filled_rectangle(20, 16, v_w, 8, black);
       }
 
-      if (!isnan(id(battery_level).state)) {
-        it.printf(780, 18, id(font_sm), COLOR_OFF, TextAlign::TOP_RIGHT, "BAT: %.0f%%", id(battery_level).state);
-      }
-      it.horizontal_line(20, 46, 760, COLOR_OFF);
+      // Vertical Divider between App Column (Left) and Remote Controls (Right)
+      it.vertical_line(140, 36, 740, black);
 
-      // Vertical Divider separating Left App Grid from Right Remote Panel
-      it.vertical_line(280, 56, 414, COLOR_OFF);
-
-      // --- Left Column: 8 Streaming App Icon Tiles (2 cols x 4 rows) ---
-      struct AppTile {
-        const char* icon;
-        const char* label;
-      };
-      const AppTile apps[8] = {
-        {"\ue63c", "YouTube"},
-        {"\ue02c", "Jellyfin"},
-        {"\ue71c", "Crunchy"},
-        {"\ue04a", "Prime"},
-        {"\ueb9d", "Dropout"},
-        {"\uebe7", "F1 TV"},
-        {"\ueb7f", "Max"},
-        {"\ue02c", "Disney+"}
-      };
-
+      // =======================================================================
+      // LEFT COLUMN: 8 STREAMING APP ICONS (x: 18, w: 104, h: 80)
+      // =======================================================================
       for (int i = 0; i < 8; i++) {
-        int col = i % 2;
-        int row = i / 2;
-        int ax = 20 + col * 125;
-        int ay = 65 + row * 103;
-        it.rectangle(ax, ay, 110, 90, COLOR_OFF);
-        it.printf(ax + 55, ay + 32, id(font_icons), COLOR_OFF, TextAlign::CENTER, "%s", apps[i].icon);
-        it.printf(ax + 55, ay + 68, id(font_xs), COLOR_OFF, TextAlign::CENTER, "%s", apps[i].label);
+        int ay = 45 + i * 92;
+        rounded_rect(18, ay, 104, 80, 12);
       }
+      it.image(70, 85, id(logo_youtube), ImageAlign::CENTER, black, white);
+      it.image(70, 177, id(logo_jellyfin), ImageAlign::CENTER, black, white);
+      it.image(70, 269, id(logo_crunchyroll), ImageAlign::CENTER, black, white);
+      it.image(70, 361, id(logo_prime), ImageAlign::CENTER, black, white);
+      it.image(70, 453, id(logo_dropout), ImageAlign::CENTER, black, white);
+      it.image(70, 545, id(logo_f1), ImageAlign::CENTER, black, white);
+      it.image(70, 637, id(logo_max), ImageAlign::CENTER, black, white);
+      it.image(70, 729, id(logo_disney), ImageAlign::CENTER, black, white);
 
-      // --- Right Panel: Navigation Row (y: 65 to 135) ---
-      it.rectangle(300, 65, 140, 70, COLOR_OFF);
-      it.printf(370, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4"); // Back
+      // =======================================================================
+      // RIGHT PANEL: NAVIGATION, D-PAD & MEDIA (Thumb Ergonomics)
+      // =======================================================================
+      
+      // Secondary Navigation Row (Back, Home, Menu)
+      rounded_rect(155, 45, 92, 75, 12);
+      it.image(201, 82, id(icon_back), ImageAlign::CENTER, black, white);
 
-      it.rectangle(460, 65, 140, 70, COLOR_OFF);
-      it.printf(530, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue88a"); // Home
+      rounded_rect(260, 45, 92, 75, 12);
+      it.image(306, 82, id(icon_home), ImageAlign::CENTER, black, white);
 
-      it.rectangle(620, 65, 140, 70, COLOR_OFF);
-      it.printf(690, 100, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d2"); // Menu
+      rounded_rect(365, 45, 92, 75, 12);
+      it.image(411, 82, id(icon_menu), ImageAlign::CENTER, black, white);
 
-      // --- Right Panel: D-Pad Matrix (y: 155 to 385) ---
+      // Primary D-Pad Matrix (y: 135 to 455)
       // Up
-      it.rectangle(460, 155, 140, 70, COLOR_OFF);
-      it.printf(530, 190, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5d8");
+      rounded_rect(235, 135, 142, 95, 12);
+      it.image(306, 182, id(icon_up), ImageAlign::CENTER, black, white);
       // Left
-      it.rectangle(320, 235, 120, 70, COLOR_OFF);
-      it.printf(380, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c4");
-      // Center
-      it.rectangle(460, 235, 140, 70, COLOR_OFF);
-      it.printf(530, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue836");
+      rounded_rect(155, 242, 95, 125, 12);
+      it.image(202, 304, id(icon_left), ImageAlign::CENTER, black, white);
+      // Center (Select)
+      fill_rounded_rect(262, 242, 88, 125, 12, black);
+      it.image(306, 304, id(icon_select), ImageAlign::CENTER, white, black);
       // Right
-      it.rectangle(620, 235, 120, 70, COLOR_OFF);
-      it.printf(680, 270, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5c8");
+      rounded_rect(362, 242, 95, 125, 12);
+      it.image(409, 304, id(icon_right), ImageAlign::CENTER, black, white);
       // Down
-      it.rectangle(460, 315, 140, 70, COLOR_OFF);
-      it.printf(530, 350, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue5db");
+      rounded_rect(235, 379, 142, 95, 12);
+      it.image(306, 426, id(icon_down), ImageAlign::CENTER, black, white);
 
-      // --- Right Panel: Media & Volume Controls (y: 395 to 465) ---
-      it.rectangle(300, 395, 105, 70, COLOR_OFF);
-      it.printf(352, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue037"); // Play/Pause
+      // Media Play/Pause Bar
+      rounded_rect(155, 495, 302, 85, 12);
+      it.image(306, 537, id(icon_play_pause), ImageAlign::CENTER, black, white);
 
-      it.rectangle(420, 395, 105, 70, COLOR_OFF);
-      it.printf(472, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04d"); // Vol-
+      // Denon AVR Volume Controls (Vol-, Vol+, Mute)
+      rounded_rect(155, 600, 92, 85, 12);
+      it.image(201, 642, id(icon_vol_down), ImageAlign::CENTER, black, white);
 
-      it.rectangle(540, 395, 105, 70, COLOR_OFF);
-      it.printf(592, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue050"); // Vol+
+      rounded_rect(260, 600, 92, 85, 12);
+      it.filled_rectangle(296, 640, 20, 4, black);
+      it.filled_rectangle(304, 632, 4, 20, black); // Large Plus icon
 
-      it.rectangle(660, 395, 105, 70, COLOR_OFF);
-      it.printf(712, 430, id(font_icons), COLOR_OFF, TextAlign::CENTER, "\ue04f"); // Mute
+      rounded_rect(365, 600, 92, 85, 12);
+      it.image(411, 642, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+
+# =============================================================================
+# GT911 Touchscreen Coordinates Mapping
+# =============================================================================
+
+touchscreen:
+  - platform: gt911
+    id: sticky_touch
+    display: epaper_display
+    i2c_id: touch_i2c
+    interrupt_pin: GPIO21
+    reset_pin: GPIO41
+    transform:
+      mirror_y: true
+    on_touch:
+      then:
+        - lambda: |-
+            const int x = touch.x;
+            const int y = touch.y;
+            const uint32_t now = millis();
+
+            id(touch_active) = true;
+            id(touch_start_x) = x;
+            id(touch_start_y) = y;
+            id(touch_started_ms) = now;
+            id(touch_last_repeat_ms) = now;
+            id(touch_repeat_cmd) = 0;
+
+            // Immediate touch action for repeatable D-pad directions
+            if (x >= 235 && x <= 377 && y >= 135 && y <= 230) {
+              id(touch_repeat_cmd) = 1;
+              id(shield_cmd).execute("DPAD_UP");
+            } else if (x >= 235 && x <= 377 && y >= 379 && y <= 474) {
+              id(touch_repeat_cmd) = 2;
+              id(shield_cmd).execute("DPAD_DOWN");
+            } else if (x >= 155 && x <= 250 && y >= 242 && y <= 367) {
+              id(touch_repeat_cmd) = 3;
+              id(shield_cmd).execute("DPAD_LEFT");
+            } else if (x >= 362 && x <= 457 && y >= 242 && y <= 367) {
+              id(touch_repeat_cmd) = 4;
+              id(shield_cmd).execute("DPAD_RIGHT");
+            } else if (x >= 262 && x <= 350 && y >= 242 && y <= 367) {
+              id(touch_repeat_cmd) = 5;
+              id(shield_cmd).execute("DPAD_CENTER");
+            }
+    on_release:
+      then:
+        - lambda: |-
+            if (!id(touch_active)) return;
+            const int x = id(touch_start_x);
+            const int y = id(touch_start_y);
+            const uint32_t held_ms = millis() - id(touch_started_ms);
+
+            if (id(touch_repeat_cmd) == 0) {
+              // --- Left App Column Launchers (x: 18 to 122) ---
+              if (x >= 18 && x <= 122) {
+                int idx = (y - 45) / 92;
+                if (idx >= 0 && idx < 8) {
+                  switch(idx) {
+                    case 0: id(launch_app).execute("com.google.android.youtube.tv"); break;
+                    case 1: id(launch_app).execute("org.jellyfin.androidtv"); break;
+                    case 2: id(launch_app).execute("com.crunchyroll.crunchyroid"); break;
+                    case 3: id(launch_app).execute("com.amazon.amazonvideo.livingroom"); break;
+                    case 4: id(launch_app).execute("com.collegehumor.chdropout"); break;
+                    case 5: id(launch_app).execute("com.formulaone.production"); break;
+                    case 6: id(launch_app).execute("com.wbd.stream"); break; // Max
+                    case 7: id(launch_app).execute("com.disney.disneyplus"); break;
+                  }
+                }
+              }
+
+              // --- Secondary Navigation (y: 45 to 120) ---
+              if (y >= 45 && y <= 120) {
+                if (x >= 155 && x <= 247) {
+                  if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
+                  else id(shield_cmd).execute("BACK");
+                } else if (x >= 260 && x <= 352) {
+                  if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
+                  else id(shield_cmd).execute("HOME");
+                } else if (x >= 365 && x <= 457) {
+                  id(shield_cmd).execute("MENU");
+                }
+              }
+
+              // --- Play/Pause Bar (y: 495 to 580) ---
+              if (x >= 155 && x <= 457 && y >= 495 && y <= 580) {
+                id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
+              }
+
+              // --- AVR Volume Row (y: 600 to 685) ---
+              if (y >= 600 && y <= 685) {
+                if (x >= 155 && x <= 247) id(denon_vol_down).execute();
+                else if (x >= 260 && x <= 352) id(denon_vol_up).execute();
+                else if (x >= 365 && x <= 457) id(denon_mute).execute();
+              }
+            }
+
+            id(touch_active) = false;
+            id(touch_repeat_cmd) = 0;
