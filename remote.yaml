@@ -551,23 +551,25 @@ display:
       it.horizontal_line(16, 36, 448, black);
 
       // =======================================================================
-      // 2. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 48 to 330)
+      // 2. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 48 to 326)
       // =======================================================================
-      // Up
+      // Up (w: 180, h: 85)
       rounded_rect(150, 48, 180, 85, 14);
       it.image(240, 90, id(icon_up), ImageAlign::CENTER, black, white);
 
-      // Left - Center (Select) - Right
-      rounded_rect(16, 142, 120, 90, 14);
+      // Left - Stretched vertically to 180 px high (matches Up/Down width)
+      rounded_rect(16, 97, 120, 180, 14);
       it.image(76, 187, id(icon_left), ImageAlign::CENTER, black, white);
 
+      // Center (Select)
       fill_rounded_rect(148, 142, 184, 90, 14, black);
       it.image(240, 187, id(icon_select), ImageAlign::CENTER, white, black);
 
-      rounded_rect(344, 142, 120, 90, 14);
+      // Right - Stretched vertically to 180 px high (matches Up/Down width)
+      rounded_rect(344, 97, 120, 180, 14);
       it.image(404, 187, id(icon_right), ImageAlign::CENTER, black, white);
 
-      // Down
+      // Down (w: 180, h: 85)
       rounded_rect(150, 241, 180, 85, 14);
       it.image(240, 283, id(icon_down), ImageAlign::CENTER, black, white);
 
@@ -660,10 +662,10 @@ touchscreen:
             } else if (x >= 235 && x <= 377 && y >= 379 && y <= 474) {
               id(touch_repeat_cmd) = 2;
               id(shield_cmd).execute("DPAD_DOWN");
-            } else if (x >= 155 && x <= 250 && y >= 242 && y <= 367) {
+            } else if (x >= 16 && x <= 136 && y >= 97 && y <= 277) {
               id(touch_repeat_cmd) = 3;
               id(shield_cmd).execute("DPAD_LEFT");
-            } else if (x >= 362 && x <= 457 && y >= 242 && y <= 367) {
+            } else if (x >= 344 && x <= 464 && y >= 97 && y <= 277) {
               id(touch_repeat_cmd) = 4;
               id(shield_cmd).execute("DPAD_RIGHT");
             } else if (x >= 262 && x <= 350 && y >= 242 && y <= 367) {
