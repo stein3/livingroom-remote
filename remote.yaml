@@ -244,6 +244,9 @@ image:
 # =============================================================================
 
 globals:
+  - id: remote_sleeping
+    type: bool
+    initial_value: "false"
   - id: touch_active
     type: bool
     initial_value: "false"
@@ -349,7 +352,9 @@ script:
                 action: media_player.turn_off
                 data:
                   entity_id: ${denon_entity}
-      - delay: 250ms
+      - lambda: "id(remote_sleeping) = true;"
+      - component.update: epaper_display
+      - delay: 1500ms
       - deep_sleep.enter: sticky_deep_sleep
 
   # Shield Commands
@@ -527,7 +532,7 @@ binary_sensor:
 
   - platform: gpio
     id: button_ai_power
-    name: "AI Power / Sleep Button"
+    name: "Sleep Button"
     pin:
       number: GPIO4
       allow_other_uses: true
@@ -606,6 +611,36 @@ display:
 
       it.fill(white);
       it.rectangle(0, 0, w, h, black);
+
+      if (id(remote_sleeping)) {
+        it.filled_circle(240, 245, 92, black);
+        it.filled_circle(278, 215, 92, white);
+        it.printf(240, 365, id(font_sm), black, TextAlign::TOP_CENTER, "REMOTE SLEEPING");
+
+        fill_rounded_rect(170, 615, 140, 72, 18, black);
+        it.printf(240, 636, id(font_sm), white, TextAlign::TOP_CENTER, "WAKE");
+
+        it.line(104, 470, 104, 430, black);
+        it.line(104, 430, 132, 390, black);
+        it.line(132, 390, 180, 370, black);
+        it.line(180, 370, 228, 382, black);
+        it.line(228, 382, 260, 418, black);
+        it.line(260, 418, 266, 460, black);
+        it.line(266, 460, 248, 496, black);
+        it.line(248, 496, 214, 510, black);
+        it.line(214, 510, 184, 500, black);
+        it.line(184, 500, 166, 478, black);
+        it.line(166, 478, 166, 450, black);
+        it.line(166, 450, 184, 430, black);
+        it.line(184, 430, 206, 434, black);
+        it.line(206, 434, 220, 452, black);
+        it.line(220, 452, 214, 470, black);
+        it.line(214, 470, 198, 478, black);
+        it.filled_triangle(198, 478, 210, 474, 204, 488, black);
+
+        it.printf(240, 710, id(font_xs), black, TextAlign::TOP_CENTER, "PRESS THE SIDE BUTTON TO WAKE");
+        return;
+      }
 
       // =======================================================================
       // 1. TOP STATUS BAR (Time, Date, Shield/TV State, Battery %)
