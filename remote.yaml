@@ -70,6 +70,7 @@ esphome:
     - priority: 900
       then:
         - lambda: |-
+            id(remote_sleeping) = false;
             gpio_deep_sleep_hold_dis();
             gpio_hold_dis(GPIO_NUM_42);
             gpio_hold_dis(GPIO_NUM_45);
@@ -155,7 +156,7 @@ wifi:
   ap:
     ssid: "reTerminal-Sticky"
     password: !secret wifi_password
-  output_power: 13dB      # Lowers transmit power from default 20dB down to 13dB
+  output_power: 8.5dB      # Lowers transmit power from default 20dB down to 13dB
   power_save_mode: HIGH   # Enables modem sleep for power saving
   fast_connect: true      # Skips full scan to connect faster
 
@@ -232,6 +233,15 @@ font:
 # =============================================================================
 
 image:
+  - platform: file
+    defaults:
+      type: BINARY
+      transparency: opaque
+      resize: 480x800
+    files:
+      - id: sleep_screen
+        file: https://raw.githubusercontent.com/CitizenRacer/BasementRemote/main/assets/sleep-screen.svg
+
   - platform: file
     defaults:
       type: BINARY
@@ -400,6 +410,8 @@ script:
   - id: act_power_off_and_sleep
     then:
       - script.execute: beep_double
+      - lambda: "id(remote_sleeping) = true;"
+      - component.update: epaper_display
       - if:
           condition:
             lambda: "return id(shield_is_on).state;"
@@ -416,9 +428,7 @@ script:
                 action: media_player.turn_off
                 data:
                   entity_id: ${denon_entity}
-      - lambda: "id(remote_sleeping) = true;"
-      - component.update: epaper_display
-      - delay: 1500ms
+      - delay: 3000ms
       - deep_sleep.enter: sticky_deep_sleep
 
   # Shield Commands
@@ -649,7 +659,7 @@ display:
     model: Seeed-reTerminal-Sticky
     spi_id: display_spi
     rotation: 90
-    update_interval: 10min
+    update_interval: never
     full_update_every: 1
     lambda: |-
       const auto black = Color(0, 0, 0);
@@ -677,32 +687,7 @@ display:
       it.rectangle(0, 0, w, h, black);
 
       if (id(remote_sleeping)) {
-        it.filled_circle(240, 245, 92, black);
-        it.filled_circle(278, 215, 92, white);
-        it.printf(240, 365, id(font_sm), black, TextAlign::TOP_CENTER, "REMOTE SLEEPING");
-
-        fill_rounded_rect(170, 615, 140, 72, 18, black);
-        it.printf(240, 636, id(font_sm), white, TextAlign::TOP_CENTER, "WAKE");
-
-        it.line(104, 470, 104, 430, black);
-        it.line(104, 430, 132, 390, black);
-        it.line(132, 390, 180, 370, black);
-        it.line(180, 370, 228, 382, black);
-        it.line(228, 382, 260, 418, black);
-        it.line(260, 418, 266, 460, black);
-        it.line(266, 460, 248, 496, black);
-        it.line(248, 496, 214, 510, black);
-        it.line(214, 510, 184, 500, black);
-        it.line(184, 500, 166, 478, black);
-        it.line(166, 478, 166, 450, black);
-        it.line(166, 450, 184, 430, black);
-        it.line(184, 430, 206, 434, black);
-        it.line(206, 434, 220, 452, black);
-        it.line(220, 452, 214, 470, black);
-        it.line(214, 470, 198, 478, black);
-        it.filled_triangle(198, 478, 210, 474, 204, 488, black);
-
-        it.printf(240, 710, id(font_xs), black, TextAlign::TOP_CENTER, "PRESS THE SIDE BUTTON TO WAKE");
+        it.image(w / 2, h / 2, id(sleep_screen), ImageAlign::CENTER, white, black);
         return;
       }
 
