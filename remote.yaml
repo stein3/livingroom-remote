@@ -7,55 +7,59 @@ substitutions:
   layout_vol_mute_y: "48"
   layout_vol_mute_w: "140"
   layout_vol_mute_h: "85"
-  layout_vol_down_x: "170"
-  layout_vol_down_y: "48"
-  layout_vol_down_w: "140"
-  layout_vol_down_h: "85"
-  layout_vol_up_x: "324"
-  layout_vol_up_y: "48"
-  layout_vol_up_w: "140"
-  layout_vol_up_h: "85"
-  layout_dpad_up_x: "150"
-  layout_dpad_up_y: "143"
-  layout_dpad_up_w: "180"
-  layout_dpad_up_h: "85"
-  layout_dpad_left_x: "16"
-  layout_dpad_left_y: "192"
-  layout_dpad_left_w: "120"
-  layout_dpad_left_h: "180"
-  layout_dpad_select_x: "148"
-  layout_dpad_select_y: "237"
-  layout_dpad_select_w: "184"
-  layout_dpad_select_h: "90"
-  layout_dpad_right_x: "344"
-  layout_dpad_right_y: "192"
-  layout_dpad_right_w: "120"
-  layout_dpad_right_h: "180"
-  layout_dpad_down_x: "150"
-  layout_dpad_down_y: "336"
-  layout_dpad_down_w: "180"
-  layout_dpad_down_h: "85"
-  layout_nav_back_x: "16"
-  layout_nav_back_y: "438"
-  layout_nav_back_w: "140"
-  layout_nav_back_h: "85"
-  layout_nav_home_x: "170"
-  layout_nav_home_y: "438"
+  layout_nav_home_x: "324"
+  layout_nav_home_y: "48"
   layout_nav_home_w: "140"
   layout_nav_home_h: "85"
-  layout_nav_play_x: "324"
-  layout_nav_play_y: "438"
+  layout_nav_menu_x: "324"
+  layout_nav_menu_y: "143"
+  layout_nav_menu_w: "140"
+  layout_nav_menu_h: "85"
+  layout_dpad_up_x: "170"
+  layout_dpad_up_y: "143"
+  layout_dpad_up_w: "140"
+  layout_dpad_up_h: "85"
+  layout_dpad_left_x: "16"
+  layout_dpad_left_y: "238"
+  layout_dpad_left_w: "140"
+  layout_dpad_left_h: "135"
+  layout_dpad_select_x: "170"
+  layout_dpad_select_y: "238"
+  layout_dpad_select_w: "140"
+  layout_dpad_select_h: "135"
+  layout_dpad_right_x: "324"
+  layout_dpad_right_y: "238"
+  layout_dpad_right_w: "140"
+  layout_dpad_right_h: "135"
+  layout_dpad_down_x: "170"
+  layout_dpad_down_y: "380"
+  layout_dpad_down_w: "140"
+  layout_dpad_down_h: "85"
+  layout_nav_back_x: "94"
+  layout_nav_back_y: "475"
+  layout_nav_back_w: "140"
+  layout_nav_back_h: "85"
+  layout_nav_play_x: "246"
+  layout_nav_play_y: "475"
   layout_nav_play_w: "140"
   layout_nav_play_h: "85"
+  layout_skip_left_x: "16"
+  layout_skip_left_y: "380"
+  layout_skip_left_w: "140"
+  layout_skip_left_h: "85"
+  layout_skip_right_x: "324"
+  layout_skip_right_y: "380"
+  layout_skip_right_w: "140"
+  layout_skip_right_h: "85"
   layout_divider_x: "16"
-  layout_divider_y: "538"
+  layout_divider_y: "570"
   layout_divider_w: "448"
   layout_app_x: "16"
-  layout_app_y: "565"
+  layout_app_y: "580"
   layout_app_w: "104"
   layout_app_h: "100"
   layout_app_gap_x: "10"
-  layout_app_gap_y: "15"
+  layout_app_gap_y: "10"
   layout_app_columns: "4"
   layout_app_rows: "2"
 
@@ -252,6 +256,10 @@ image:
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/cursor-arrow-ripple.svg
       - id: icon_play_pause
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/play-pause.svg
+      - id: icon_skip_left
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/backward.svg
+      - id: icon_skip_right
+        file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/forward.svg
       - id: icon_vol_mute
         file: https://raw.githubusercontent.com/tailwindlabs/heroicons/v2.2.0/optimized/24/solid/speaker-x-mark.svg
         resize: 42x42
@@ -357,8 +365,9 @@ script:
       - light.turn_on:
           id: buzzer
           brightness: 30%
-      - delay: 110ms
+      - delay: 60ms
       - light.turn_off: buzzer
+      - delay: 30ms
 
       # Reset base frequency back to default tap tone
       - output.ledc.set_frequency:
@@ -721,48 +730,44 @@ display:
       it.horizontal_line(16, 36, 448, black);
 
       // =======================================================================
-      // 2. VOLUME MUTE - VOLUME DOWN - VOLUME UP
-      // Volume controls are kept at the top for quick access.
+      // 2. MUTE - UP - HOME
       rounded_rect(${layout_vol_mute_x}, ${layout_vol_mute_y}, ${layout_vol_mute_w}, ${layout_vol_mute_h}, 14);
       it.image(${layout_vol_mute_x} + ${layout_vol_mute_w} / 2, ${layout_vol_mute_y} + ${layout_vol_mute_h} / 2, id(icon_vol_mute), ImageAlign::CENTER, black, white);
 
-      rounded_rect(${layout_vol_down_x}, ${layout_vol_down_y}, ${layout_vol_down_w}, ${layout_vol_down_h}, 14);
-      it.image(${layout_vol_down_x} + ${layout_vol_down_w} / 2, ${layout_vol_down_y} + ${layout_vol_down_h} / 2, id(icon_vol_down), ImageAlign::CENTER, black, white);
-
-      rounded_rect(${layout_vol_up_x}, ${layout_vol_up_y}, ${layout_vol_up_w}, ${layout_vol_up_h}, 14);
-      it.image(${layout_vol_up_x} + ${layout_vol_up_w} / 2, ${layout_vol_up_y} + ${layout_vol_up_h} / 2, id(icon_vol_up), ImageAlign::CENTER, black, white);
-
-      // =======================================================================
-      // 3. FULL-WIDTH NAVIGATIONAL CLUSTER
-      // =======================================================================
-      // Up (w: 180, h: 85)
       rounded_rect(${layout_dpad_up_x}, ${layout_dpad_up_y}, ${layout_dpad_up_w}, ${layout_dpad_up_h}, 14);
       it.image(${layout_dpad_up_x} + ${layout_dpad_up_w} / 2, ${layout_dpad_up_y} + ${layout_dpad_up_h} / 2, id(icon_up), ImageAlign::CENTER, black, white);
 
-      // Left - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(${layout_dpad_left_x}, ${layout_dpad_left_y}, ${layout_dpad_left_w}, ${layout_dpad_left_h}, 14);
-      it.image(${layout_dpad_left_x} + ${layout_dpad_left_w} / 2, ${layout_dpad_left_y} + ${layout_dpad_left_h} / 2, id(icon_left), ImageAlign::CENTER, black, white);
-
-      // Center (Select)
-      fill_rounded_rect(${layout_dpad_select_x}, ${layout_dpad_select_y}, ${layout_dpad_select_w}, ${layout_dpad_select_h}, 14, black);
-      it.image(${layout_dpad_select_x} + ${layout_dpad_select_w} / 2, ${layout_dpad_select_y} + ${layout_dpad_select_h} / 2, id(icon_select), ImageAlign::CENTER, white, black);
-
-      // Right - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(${layout_dpad_right_x}, ${layout_dpad_right_y}, ${layout_dpad_right_w}, ${layout_dpad_right_h}, 14);
-      it.image(${layout_dpad_right_x} + ${layout_dpad_right_w} / 2, ${layout_dpad_right_y} + ${layout_dpad_right_h} / 2, id(icon_right), ImageAlign::CENTER, black, white);
-
-      // Down (w: 180, h: 85)
-      rounded_rect(${layout_dpad_down_x}, ${layout_dpad_down_y}, ${layout_dpad_down_w}, ${layout_dpad_down_h}, 14);
-      it.image(${layout_dpad_down_x} + ${layout_dpad_down_w} / 2, ${layout_dpad_down_y} + ${layout_dpad_down_h} / 2, id(icon_down), ImageAlign::CENTER, black, white);
-
-      // =======================================================================
-      // 4. BACK - HOME - PLAY/PAUSE
-      // =======================================================================
-      rounded_rect(${layout_nav_back_x}, ${layout_nav_back_y}, ${layout_nav_back_w}, ${layout_nav_back_h}, 14);
-      it.image(${layout_nav_back_x} + ${layout_nav_back_w} / 2, ${layout_nav_back_y} + ${layout_nav_back_h} / 2, id(icon_back), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_nav_menu_x}, ${layout_nav_menu_y}, ${layout_nav_menu_w}, ${layout_nav_menu_h}, 14);
+      it.image(${layout_nav_menu_x} + ${layout_nav_menu_w} / 2, ${layout_nav_menu_y} + ${layout_nav_menu_h} / 2, id(icon_menu), ImageAlign::CENTER, black, white);
 
       rounded_rect(${layout_nav_home_x}, ${layout_nav_home_y}, ${layout_nav_home_w}, ${layout_nav_home_h}, 14);
       it.image(${layout_nav_home_x} + ${layout_nav_home_w} / 2, ${layout_nav_home_y} + ${layout_nav_home_h} / 2, id(icon_home), ImageAlign::CENTER, black, white);
+
+      // =======================================================================
+      // 3. LEFT - SELECT - RIGHT
+      // =======================================================================
+      rounded_rect(${layout_dpad_left_x}, ${layout_dpad_left_y}, ${layout_dpad_left_w}, ${layout_dpad_left_h}, 14);
+      it.image(${layout_dpad_left_x} + ${layout_dpad_left_w} / 2, ${layout_dpad_left_y} + ${layout_dpad_left_h} / 2, id(icon_left), ImageAlign::CENTER, black, white);
+
+      fill_rounded_rect(${layout_dpad_select_x}, ${layout_dpad_select_y}, ${layout_dpad_select_w}, ${layout_dpad_select_h}, 14, black);
+      it.image(${layout_dpad_select_x} + ${layout_dpad_select_w} / 2, ${layout_dpad_select_y} + ${layout_dpad_select_h} / 2, id(icon_select), ImageAlign::CENTER, white, black);
+
+      rounded_rect(${layout_dpad_right_x}, ${layout_dpad_right_y}, ${layout_dpad_right_w}, ${layout_dpad_right_h}, 14);
+      it.image(${layout_dpad_right_x} + ${layout_dpad_right_w} / 2, ${layout_dpad_right_y} + ${layout_dpad_right_h} / 2, id(icon_right), ImageAlign::CENTER, black, white);
+
+      // 4. SKIP LEFT - DOWN - SKIP RIGHT
+      rounded_rect(${layout_skip_left_x}, ${layout_skip_left_y}, ${layout_skip_left_w}, ${layout_skip_left_h}, 14);
+      it.image(${layout_skip_left_x} + ${layout_skip_left_w} / 2, ${layout_skip_left_y} + ${layout_skip_left_h} / 2, id(icon_skip_left), ImageAlign::CENTER, black, white);
+
+      rounded_rect(${layout_dpad_down_x}, ${layout_dpad_down_y}, ${layout_dpad_down_w}, ${layout_dpad_down_h}, 14);
+      it.image(${layout_dpad_down_x} + ${layout_dpad_down_w} / 2, ${layout_dpad_down_y} + ${layout_dpad_down_h} / 2, id(icon_down), ImageAlign::CENTER, black, white);
+
+      rounded_rect(${layout_skip_right_x}, ${layout_skip_right_y}, ${layout_skip_right_w}, ${layout_skip_right_h}, 14);
+      it.image(${layout_skip_right_x} + ${layout_skip_right_w} / 2, ${layout_skip_right_y} + ${layout_skip_right_h} / 2, id(icon_skip_right), ImageAlign::CENTER, black, white);
+
+      // 5. BACK - PLAY/PAUSE
+      rounded_rect(${layout_nav_back_x}, ${layout_nav_back_y}, ${layout_nav_back_w}, ${layout_nav_back_h}, 14);
+      it.image(${layout_nav_back_x} + ${layout_nav_back_w} / 2, ${layout_nav_back_y} + ${layout_nav_back_h} / 2, id(icon_back), ImageAlign::CENTER, black, white);
 
       rounded_rect(${layout_nav_play_x}, ${layout_nav_play_y}, ${layout_nav_play_w}, ${layout_nav_play_h}, 14);
       it.image(${layout_nav_play_x} + ${layout_nav_play_w} / 2, ${layout_nav_play_y} + ${layout_nav_play_h} / 2, id(icon_play_pause), ImageAlign::CENTER, black, white);
@@ -818,19 +823,17 @@ touchscreen:
 
             const char* btn_name = "None";
 
-            // --- Volume Controls Row ---
+            // --- Mute - Up - Home ---
             if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
               btn_name = "VOL_MUTE";
-            } else if (x >= ${layout_vol_down_x} && x <= ${layout_vol_down_x} + ${layout_vol_down_w} && y >= ${layout_vol_down_y} && y <= ${layout_vol_down_y} + ${layout_vol_down_h}) {
-              btn_name = "VOL_DOWN";
-            } else if (x >= ${layout_vol_up_x} && x <= ${layout_vol_up_x} + ${layout_vol_up_w} && y >= ${layout_vol_up_y} && y <= ${layout_vol_up_y} + ${layout_vol_up_h}) {
-              btn_name = "VOL_UP";
             }
             // --- Full-Width D-Pad Matrix ---
             else if (x >= ${layout_dpad_up_x} && x <= ${layout_dpad_up_x} + ${layout_dpad_up_w} && y >= ${layout_dpad_up_y} && y <= ${layout_dpad_up_y} + ${layout_dpad_up_h}) {
               btn_name = "DPAD_UP";
               id(touch_repeat_cmd) = 1;
               id(shield_cmd).execute("DPAD_UP");
+            } else if (x >= ${layout_nav_menu_x} && x <= ${layout_nav_menu_x} + ${layout_nav_menu_w} && y >= ${layout_nav_menu_y} && y <= ${layout_nav_menu_y} + ${layout_nav_menu_h}) {
+              btn_name = "NAV_MENU";
             } else if (x >= ${layout_dpad_down_x} && x <= ${layout_dpad_down_x} + ${layout_dpad_down_w} && y >= ${layout_dpad_down_y} && y <= ${layout_dpad_down_y} + ${layout_dpad_down_h}) {
               btn_name = "DPAD_DOWN";
               id(touch_repeat_cmd) = 2;
@@ -848,7 +851,13 @@ touchscreen:
               id(touch_repeat_cmd) = 5;
               id(shield_cmd).execute("DPAD_CENTER");
             }
-            // --- Navigation & Play/Pause Row ---
+            // --- Skip Left - Down - Skip Right ---
+            else if (x >= ${layout_skip_left_x} && x <= ${layout_skip_left_x} + ${layout_skip_left_w} && y >= ${layout_skip_left_y} && y <= ${layout_skip_left_y} + ${layout_skip_left_h}) {
+              btn_name = "SKIP_LEFT";
+            } else if (x >= ${layout_skip_right_x} && x <= ${layout_skip_right_x} + ${layout_skip_right_w} && y >= ${layout_skip_right_y} && y <= ${layout_skip_right_y} + ${layout_skip_right_h}) {
+              btn_name = "SKIP_RIGHT";
+            }
+            // --- Home - Back - Play/Pause ---
             else if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
               btn_name = "NAV_BACK";
             } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
@@ -895,14 +904,18 @@ touchscreen:
                 else id(shield_cmd).execute("HOME");
               } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
                 id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
+              } else if (x >= ${layout_nav_menu_x} && x <= ${layout_nav_menu_x} + ${layout_nav_menu_w} && y >= ${layout_nav_menu_y} && y <= ${layout_nav_menu_y} + ${layout_nav_menu_h}) {
+                id(shield_cmd).execute("MENU");
               }
-              // --- Volume Controls Row ---
+              // --- Mute ---
               else if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
                 id(denon_mute).execute();
-              } else if (x >= ${layout_vol_down_x} && x <= ${layout_vol_down_x} + ${layout_vol_down_w} && y >= ${layout_vol_down_y} && y <= ${layout_vol_down_y} + ${layout_vol_down_h}) {
-                id(denon_vol_down).execute();
-              } else if (x >= ${layout_vol_up_x} && x <= ${layout_vol_up_x} + ${layout_vol_up_w} && y >= ${layout_vol_up_y} && y <= ${layout_vol_up_y} + ${layout_vol_up_h}) {
-                id(denon_vol_up).execute();
+              }
+              // --- Skip Left - Skip Right ---
+              else if (x >= ${layout_skip_left_x} && x <= ${layout_skip_left_x} + ${layout_skip_left_w} && y >= ${layout_skip_left_y} && y <= ${layout_skip_left_y} + ${layout_skip_left_h}) {
+                id(shield_cmd).execute("MEDIA_REWIND");
+              } else if (x >= ${layout_skip_right_x} && x <= ${layout_skip_right_x} + ${layout_skip_right_w} && y >= ${layout_skip_right_y} && y <= ${layout_skip_right_y} + ${layout_skip_right_h}) {
+                id(shield_cmd).execute("MEDIA_FAST_FORWARD");
               }
               // --- 2x4 Media App Grid ---
               else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
