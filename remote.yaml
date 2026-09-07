@@ -666,63 +666,63 @@ display:
       it.horizontal_line(16, 36, 448, black);
 
       // =======================================================================
-      // 2. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 48 to 326)
+      // 2. VOLUME MUTE - VOLUME DOWN - VOLUME UP (y: 48 to 133)
+      // Volume controls are kept at the top for quick access.
+      rounded_rect(16, 48, 140, 85, 14);
+      it.image(86, 90, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+
+      rounded_rect(170, 48, 140, 85, 14);
+      it.image(240, 90, id(icon_vol_down), ImageAlign::CENTER, black, white);
+
+      rounded_rect(324, 48, 140, 85, 14);
+      it.image(394, 90, id(icon_vol_up), ImageAlign::CENTER, black, white);
+
+      // =======================================================================
+      // 3. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 143 to 421)
       // =======================================================================
       // Up (w: 180, h: 85)
-      rounded_rect(150, 48, 180, 85, 14);
-      it.image(240, 90, id(icon_up), ImageAlign::CENTER, black, white);
+      rounded_rect(150, 143, 180, 85, 14);
+      it.image(240, 185, id(icon_up), ImageAlign::CENTER, black, white);
 
       // Left - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(16, 97, 120, 180, 14);
-      it.image(76, 187, id(icon_left), ImageAlign::CENTER, black, white);
+      rounded_rect(16, 192, 120, 180, 14);
+      it.image(76, 282, id(icon_left), ImageAlign::CENTER, black, white);
 
       // Center (Select)
-      fill_rounded_rect(148, 142, 184, 90, 14, black);
-      it.image(240, 187, id(icon_select), ImageAlign::CENTER, white, black);
+      fill_rounded_rect(148, 237, 184, 90, 14, black);
+      it.image(240, 282, id(icon_select), ImageAlign::CENTER, white, black);
 
       // Right - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(344, 97, 120, 180, 14);
-      it.image(404, 187, id(icon_right), ImageAlign::CENTER, black, white);
+      rounded_rect(344, 192, 120, 180, 14);
+      it.image(404, 282, id(icon_right), ImageAlign::CENTER, black, white);
 
       // Down (w: 180, h: 85)
-      rounded_rect(150, 241, 180, 85, 14);
-      it.image(240, 283, id(icon_down), ImageAlign::CENTER, black, white);
+      rounded_rect(150, 336, 180, 85, 14);
+      it.image(240, 378, id(icon_down), ImageAlign::CENTER, black, white);
 
       // =======================================================================
-      // 3. BACK - HOME - PLAY/PAUSE (y: 340 to 425)
-      // =======================================================================
-      rounded_rect(16, 340, 140, 85, 14);
-      it.image(86, 382, id(icon_back), ImageAlign::CENTER, black, white);
-
-      rounded_rect(170, 340, 140, 85, 14);
-      it.image(240, 382, id(icon_home), ImageAlign::CENTER, black, white);
-
-      rounded_rect(324, 340, 140, 85, 14);
-      it.image(394, 382, id(icon_play_pause), ImageAlign::CENTER, black, white);
-
-      // =======================================================================
-      // 4. VOLUME MUTE - VOLUME DOWN - VOLUME UP (y: 438 to 523)
+      // 4. BACK - HOME - PLAY/PAUSE (y: 438 to 523)
       // =======================================================================
       rounded_rect(16, 438, 140, 85, 14);
-      it.image(86, 480, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+      it.image(86, 480, id(icon_back), ImageAlign::CENTER, black, white);
 
       rounded_rect(170, 438, 140, 85, 14);
-      it.image(240, 480, id(icon_vol_down), ImageAlign::CENTER, black, white);
+      it.image(240, 480, id(icon_home), ImageAlign::CENTER, black, white);
 
       rounded_rect(324, 438, 140, 85, 14);
-      it.image(394, 480, id(icon_vol_up), ImageAlign::CENTER, black, white);
+      it.image(394, 480, id(icon_play_pause), ImageAlign::CENTER, black, white);
 
       it.horizontal_line(16, 538, 448, black);
 
       // =======================================================================
-      // 5. TWO ROWS OF FOUR MEDIA APPS (y: 550 to 780)
+      // 5. TWO ROWS OF FOUR MEDIA APPS (y: 565 to 780)
       // =======================================================================
       const int app_w = 104;
       const int app_h = 100;
       const int app_gap_x = 10;
       const int app_gap_y = 15;
       const int app_start_x = 16;
-      const int app_start_y = 552;
+      const int app_start_y = 565;
 
       // Row 1: YouTube, Jellyfin, Crunchyroll, Prime Video
       // Row 2: Dropout, F1 TV, Max, Disney+
@@ -770,44 +770,44 @@ touchscreen:
 
             const char* btn_name = "None";
 
-            // --- Full-Width D-Pad Matrix ---
-            if (x >= 150 && x <= 330 && y >= 48 && y <= 133) {
-              btn_name = "DPAD_UP";
-              id(touch_repeat_cmd) = 1;
-              id(shield_cmd).execute("DPAD_UP");
-            } else if (x >= 150 && x <= 330 && y >= 241 && y <= 326) {
-              btn_name = "DPAD_DOWN";
-              id(touch_repeat_cmd) = 2;
-              id(shield_cmd).execute("DPAD_DOWN");
-            } else if (x >= 16 && x <= 136 && y >= 97 && y <= 277) {
-              btn_name = "DPAD_LEFT";
-              id(touch_repeat_cmd) = 3;
-              id(shield_cmd).execute("DPAD_LEFT");
-            } else if (x >= 344 && x <= 464 && y >= 97 && y <= 277) {
-              btn_name = "DPAD_RIGHT";
-              id(touch_repeat_cmd) = 4;
-              id(shield_cmd).execute("DPAD_RIGHT");
-            } else if (x >= 148 && x <= 332 && y >= 142 && y <= 232) {
-              btn_name = "DPAD_CENTER";
-              id(touch_repeat_cmd) = 5;
-              id(shield_cmd).execute("DPAD_CENTER");
-            }
-            // --- Navigation & Play/Pause Row (y: 340 to 425) ---
-            else if (y >= 340 && y <= 425) {
-              if (x >= 16 && x <= 156) btn_name = "NAV_BACK";
-              else if (x >= 170 && x <= 310) btn_name = "NAV_HOME";
-              else if (x >= 324 && x <= 464) btn_name = "NAV_PLAY_PAUSE";
-            }
-            // --- Volume Controls Row (y: 438 to 523) ---
-            else if (y >= 438 && y <= 523) {
+            // --- Volume Controls Row (y: 48 to 133) ---
+            if (y >= 48 && y <= 133) {
               if (x >= 16 && x <= 156) btn_name = "VOL_MUTE";
               else if (x >= 170 && x <= 310) btn_name = "VOL_DOWN";
               else if (x >= 324 && x <= 464) btn_name = "VOL_UP";
             }
-            // --- 2x4 Media App Grid (y: 552 to 767) ---
-            else if (y >= 552 && y <= 767 && x >= 16 && x <= 462) {
+            // --- Full-Width D-Pad Matrix ---
+            else if (x >= 150 && x <= 330 && y >= 143 && y <= 228) {
+              btn_name = "DPAD_UP";
+              id(touch_repeat_cmd) = 1;
+              id(shield_cmd).execute("DPAD_UP");
+            } else if (x >= 150 && x <= 330 && y >= 336 && y <= 421) {
+              btn_name = "DPAD_DOWN";
+              id(touch_repeat_cmd) = 2;
+              id(shield_cmd).execute("DPAD_DOWN");
+            } else if (x >= 16 && x <= 136 && y >= 192 && y <= 372) {
+              btn_name = "DPAD_LEFT";
+              id(touch_repeat_cmd) = 3;
+              id(shield_cmd).execute("DPAD_LEFT");
+            } else if (x >= 344 && x <= 464 && y >= 192 && y <= 372) {
+              btn_name = "DPAD_RIGHT";
+              id(touch_repeat_cmd) = 4;
+              id(shield_cmd).execute("DPAD_RIGHT");
+            } else if (x >= 148 && x <= 332 && y >= 237 && y <= 327) {
+              btn_name = "DPAD_CENTER";
+              id(touch_repeat_cmd) = 5;
+              id(shield_cmd).execute("DPAD_CENTER");
+            }
+            // --- Navigation & Play/Pause Row (y: 438 to 523) ---
+            else if (y >= 438 && y <= 523) {
+              if (x >= 16 && x <= 156) btn_name = "NAV_BACK";
+              else if (x >= 170 && x <= 310) btn_name = "NAV_HOME";
+              else if (x >= 324 && x <= 464) btn_name = "NAV_PLAY_PAUSE";
+            }
+            // --- 2x4 Media App Grid (y: 565 to 780) ---
+            else if (y >= 565 && y <= 780 && x >= 16 && x <= 462) {
               int col = (x - 16) / 114; // app_w(104) + app_gap_x(10)
-              int row = (y - 552) / 115; // app_h(100) + app_gap_y(15)
+              int row = (y - 565) / 115; // app_h(100) + app_gap_y(15)
               if (col >= 0 && col < 4 && row >= 0 && row < 2) {
                 int idx = row * 4 + col;
                 const char* apps[8] = {
@@ -835,7 +835,7 @@ touchscreen:
             // Repeatable D-pad commands already executed on initial touch
             if (id(touch_repeat_cmd) == 0) {
               // --- Navigation & Play/Pause Row ---
-              if (y >= 340 && y <= 425) {
+              if (y >= 438 && y <= 523) {
                 if (x >= 16 && x <= 156) {
                   if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
                   else id(shield_cmd).execute("BACK");
@@ -847,15 +847,15 @@ touchscreen:
                 }
               }
               // --- Volume Controls Row ---
-              else if (y >= 438 && y <= 523) {
+              else if (y >= 48 && y <= 133) {
                 if (x >= 16 && x <= 156) id(denon_mute).execute();
                 else if (x >= 170 && x <= 310) id(denon_vol_down).execute();
                 else if (x >= 324 && x <= 464) id(denon_vol_up).execute();
               }
               // --- 2x4 Media App Grid ---
-              else if (y >= 552 && y <= 767 && x >= 16 && x <= 462) {
+              else if (y >= 565 && y <= 780 && x >= 16 && x <= 462) {
                 int col = (x - 16) / 114;
-                int row = (y - 552) / 115;
+                int row = (y - 565) / 115;
                 if (col >= 0 && col < 4 && row >= 0 && row < 2) {
                   int idx = row * 4 + col;
                   switch (idx) {
