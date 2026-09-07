@@ -3,6 +3,61 @@ substitutions:
   friendly_name: "Living Room Remote"
   shield_entity: "remote.shield"
   denon_entity: "media_player.denon_avr_x1400h"
+  layout_vol_mute_x: "16"
+  layout_vol_mute_y: "48"
+  layout_vol_mute_w: "140"
+  layout_vol_mute_h: "85"
+  layout_vol_down_x: "170"
+  layout_vol_down_y: "48"
+  layout_vol_down_w: "140"
+  layout_vol_down_h: "85"
+  layout_vol_up_x: "324"
+  layout_vol_up_y: "48"
+  layout_vol_up_w: "140"
+  layout_vol_up_h: "85"
+  layout_dpad_up_x: "150"
+  layout_dpad_up_y: "143"
+  layout_dpad_up_w: "180"
+  layout_dpad_up_h: "85"
+  layout_dpad_left_x: "16"
+  layout_dpad_left_y: "192"
+  layout_dpad_left_w: "120"
+  layout_dpad_left_h: "180"
+  layout_dpad_select_x: "148"
+  layout_dpad_select_y: "237"
+  layout_dpad_select_w: "184"
+  layout_dpad_select_h: "90"
+  layout_dpad_right_x: "344"
+  layout_dpad_right_y: "192"
+  layout_dpad_right_w: "120"
+  layout_dpad_right_h: "180"
+  layout_dpad_down_x: "150"
+  layout_dpad_down_y: "336"
+  layout_dpad_down_w: "180"
+  layout_dpad_down_h: "85"
+  layout_nav_back_x: "16"
+  layout_nav_back_y: "438"
+  layout_nav_back_w: "140"
+  layout_nav_back_h: "85"
+  layout_nav_home_x: "170"
+  layout_nav_home_y: "438"
+  layout_nav_home_w: "140"
+  layout_nav_home_h: "85"
+  layout_nav_play_x: "324"
+  layout_nav_play_y: "438"
+  layout_nav_play_w: "140"
+  layout_nav_play_h: "85"
+  layout_divider_x: "16"
+  layout_divider_y: "538"
+  layout_divider_w: "448"
+  layout_app_x: "16"
+  layout_app_y: "565"
+  layout_app_w: "104"
+  layout_app_h: "100"
+  layout_app_gap_x: "10"
+  layout_app_gap_y: "15"
+  layout_app_columns: "4"
+  layout_app_rows: "2"
 
 esphome:
   name: ${device_name}
@@ -666,64 +721,57 @@ display:
       it.horizontal_line(16, 36, 448, black);
 
       // =======================================================================
-      // 2. VOLUME MUTE - VOLUME DOWN - VOLUME UP (y: 48 to 133)
+      // 2. VOLUME MUTE - VOLUME DOWN - VOLUME UP
       // Volume controls are kept at the top for quick access.
-      rounded_rect(16, 48, 140, 85, 14);
-      it.image(86, 90, id(icon_vol_mute), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_vol_mute_x}, ${layout_vol_mute_y}, ${layout_vol_mute_w}, ${layout_vol_mute_h}, 14);
+      it.image(${layout_vol_mute_x} + ${layout_vol_mute_w} / 2, ${layout_vol_mute_y} + ${layout_vol_mute_h} / 2, id(icon_vol_mute), ImageAlign::CENTER, black, white);
 
-      rounded_rect(170, 48, 140, 85, 14);
-      it.image(240, 90, id(icon_vol_down), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_vol_down_x}, ${layout_vol_down_y}, ${layout_vol_down_w}, ${layout_vol_down_h}, 14);
+      it.image(${layout_vol_down_x} + ${layout_vol_down_w} / 2, ${layout_vol_down_y} + ${layout_vol_down_h} / 2, id(icon_vol_down), ImageAlign::CENTER, black, white);
 
-      rounded_rect(324, 48, 140, 85, 14);
-      it.image(394, 90, id(icon_vol_up), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_vol_up_x}, ${layout_vol_up_y}, ${layout_vol_up_w}, ${layout_vol_up_h}, 14);
+      it.image(${layout_vol_up_x} + ${layout_vol_up_w} / 2, ${layout_vol_up_y} + ${layout_vol_up_h} / 2, id(icon_vol_up), ImageAlign::CENTER, black, white);
 
       // =======================================================================
-      // 3. FULL-WIDTH NAVIGATIONAL CLUSTER (D-Pad: y: 143 to 421)
+      // 3. FULL-WIDTH NAVIGATIONAL CLUSTER
       // =======================================================================
       // Up (w: 180, h: 85)
-      rounded_rect(150, 143, 180, 85, 14);
-      it.image(240, 185, id(icon_up), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_dpad_up_x}, ${layout_dpad_up_y}, ${layout_dpad_up_w}, ${layout_dpad_up_h}, 14);
+      it.image(${layout_dpad_up_x} + ${layout_dpad_up_w} / 2, ${layout_dpad_up_y} + ${layout_dpad_up_h} / 2, id(icon_up), ImageAlign::CENTER, black, white);
 
       // Left - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(16, 192, 120, 180, 14);
-      it.image(76, 282, id(icon_left), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_dpad_left_x}, ${layout_dpad_left_y}, ${layout_dpad_left_w}, ${layout_dpad_left_h}, 14);
+      it.image(${layout_dpad_left_x} + ${layout_dpad_left_w} / 2, ${layout_dpad_left_y} + ${layout_dpad_left_h} / 2, id(icon_left), ImageAlign::CENTER, black, white);
 
       // Center (Select)
-      fill_rounded_rect(148, 237, 184, 90, 14, black);
-      it.image(240, 282, id(icon_select), ImageAlign::CENTER, white, black);
+      fill_rounded_rect(${layout_dpad_select_x}, ${layout_dpad_select_y}, ${layout_dpad_select_w}, ${layout_dpad_select_h}, 14, black);
+      it.image(${layout_dpad_select_x} + ${layout_dpad_select_w} / 2, ${layout_dpad_select_y} + ${layout_dpad_select_h} / 2, id(icon_select), ImageAlign::CENTER, white, black);
 
       // Right - Stretched vertically to 180 px high (matches Up/Down width)
-      rounded_rect(344, 192, 120, 180, 14);
-      it.image(404, 282, id(icon_right), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_dpad_right_x}, ${layout_dpad_right_y}, ${layout_dpad_right_w}, ${layout_dpad_right_h}, 14);
+      it.image(${layout_dpad_right_x} + ${layout_dpad_right_w} / 2, ${layout_dpad_right_y} + ${layout_dpad_right_h} / 2, id(icon_right), ImageAlign::CENTER, black, white);
 
       // Down (w: 180, h: 85)
-      rounded_rect(150, 336, 180, 85, 14);
-      it.image(240, 378, id(icon_down), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_dpad_down_x}, ${layout_dpad_down_y}, ${layout_dpad_down_w}, ${layout_dpad_down_h}, 14);
+      it.image(${layout_dpad_down_x} + ${layout_dpad_down_w} / 2, ${layout_dpad_down_y} + ${layout_dpad_down_h} / 2, id(icon_down), ImageAlign::CENTER, black, white);
 
       // =======================================================================
-      // 4. BACK - HOME - PLAY/PAUSE (y: 438 to 523)
+      // 4. BACK - HOME - PLAY/PAUSE
       // =======================================================================
-      rounded_rect(16, 438, 140, 85, 14);
-      it.image(86, 480, id(icon_back), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_nav_back_x}, ${layout_nav_back_y}, ${layout_nav_back_w}, ${layout_nav_back_h}, 14);
+      it.image(${layout_nav_back_x} + ${layout_nav_back_w} / 2, ${layout_nav_back_y} + ${layout_nav_back_h} / 2, id(icon_back), ImageAlign::CENTER, black, white);
 
-      rounded_rect(170, 438, 140, 85, 14);
-      it.image(240, 480, id(icon_home), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_nav_home_x}, ${layout_nav_home_y}, ${layout_nav_home_w}, ${layout_nav_home_h}, 14);
+      it.image(${layout_nav_home_x} + ${layout_nav_home_w} / 2, ${layout_nav_home_y} + ${layout_nav_home_h} / 2, id(icon_home), ImageAlign::CENTER, black, white);
 
-      rounded_rect(324, 438, 140, 85, 14);
-      it.image(394, 480, id(icon_play_pause), ImageAlign::CENTER, black, white);
+      rounded_rect(${layout_nav_play_x}, ${layout_nav_play_y}, ${layout_nav_play_w}, ${layout_nav_play_h}, 14);
+      it.image(${layout_nav_play_x} + ${layout_nav_play_w} / 2, ${layout_nav_play_y} + ${layout_nav_play_h} / 2, id(icon_play_pause), ImageAlign::CENTER, black, white);
 
-      it.horizontal_line(16, 538, 448, black);
+      it.horizontal_line(${layout_divider_x}, ${layout_divider_y}, ${layout_divider_w}, black);
 
       // =======================================================================
-      // 5. TWO ROWS OF FOUR MEDIA APPS (y: 565 to 780)
+      // 5. TWO ROWS OF FOUR MEDIA APPS
       // =======================================================================
-      const int app_w = 104;
-      const int app_h = 100;
-      const int app_gap_x = 10;
-      const int app_gap_y = 15;
-      const int app_start_x = 16;
-      const int app_start_y = 565;
-
       // Row 1: YouTube, Jellyfin, Crunchyroll, Prime Video
       // Row 2: Dropout, F1 TV, Max, Disney+
       display::BaseImage* app_logos[8] = {
@@ -734,11 +782,11 @@ display:
       for (int i = 0; i < 8; i++) {
         int col = i % 4;
         int row = i / 4;
-        int ax = app_start_x + col * (app_w + app_gap_x);
-        int ay = app_start_y + row * (app_h + app_gap_y);
+        int ax = ${layout_app_x} + col * (${layout_app_w} + ${layout_app_gap_x});
+        int ay = ${layout_app_y} + row * (${layout_app_h} + ${layout_app_gap_y});
 
-        rounded_rect(ax, ay, app_w, app_h, 12);
-        it.image(ax + (app_w / 2), ay + (app_h / 2), app_logos[i], ImageAlign::CENTER, black, white);
+        rounded_rect(ax, ay, ${layout_app_w}, ${layout_app_h}, 12);
+        it.image(ax + (${layout_app_w} / 2), ay + (${layout_app_h} / 2), app_logos[i], ImageAlign::CENTER, black, white);
       }
 
 # =============================================================================
@@ -770,46 +818,50 @@ touchscreen:
 
             const char* btn_name = "None";
 
-            // --- Volume Controls Row (y: 48 to 133) ---
-            if (y >= 48 && y <= 133) {
-              if (x >= 16 && x <= 156) btn_name = "VOL_MUTE";
-              else if (x >= 170 && x <= 310) btn_name = "VOL_DOWN";
-              else if (x >= 324 && x <= 464) btn_name = "VOL_UP";
+            // --- Volume Controls Row ---
+            if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
+              btn_name = "VOL_MUTE";
+            } else if (x >= ${layout_vol_down_x} && x <= ${layout_vol_down_x} + ${layout_vol_down_w} && y >= ${layout_vol_down_y} && y <= ${layout_vol_down_y} + ${layout_vol_down_h}) {
+              btn_name = "VOL_DOWN";
+            } else if (x >= ${layout_vol_up_x} && x <= ${layout_vol_up_x} + ${layout_vol_up_w} && y >= ${layout_vol_up_y} && y <= ${layout_vol_up_y} + ${layout_vol_up_h}) {
+              btn_name = "VOL_UP";
             }
             // --- Full-Width D-Pad Matrix ---
-            else if (x >= 150 && x <= 330 && y >= 143 && y <= 228) {
+            else if (x >= ${layout_dpad_up_x} && x <= ${layout_dpad_up_x} + ${layout_dpad_up_w} && y >= ${layout_dpad_up_y} && y <= ${layout_dpad_up_y} + ${layout_dpad_up_h}) {
               btn_name = "DPAD_UP";
               id(touch_repeat_cmd) = 1;
               id(shield_cmd).execute("DPAD_UP");
-            } else if (x >= 150 && x <= 330 && y >= 336 && y <= 421) {
+            } else if (x >= ${layout_dpad_down_x} && x <= ${layout_dpad_down_x} + ${layout_dpad_down_w} && y >= ${layout_dpad_down_y} && y <= ${layout_dpad_down_y} + ${layout_dpad_down_h}) {
               btn_name = "DPAD_DOWN";
               id(touch_repeat_cmd) = 2;
               id(shield_cmd).execute("DPAD_DOWN");
-            } else if (x >= 16 && x <= 136 && y >= 192 && y <= 372) {
+            } else if (x >= ${layout_dpad_left_x} && x <= ${layout_dpad_left_x} + ${layout_dpad_left_w} && y >= ${layout_dpad_left_y} && y <= ${layout_dpad_left_y} + ${layout_dpad_left_h}) {
               btn_name = "DPAD_LEFT";
               id(touch_repeat_cmd) = 3;
               id(shield_cmd).execute("DPAD_LEFT");
-            } else if (x >= 344 && x <= 464 && y >= 192 && y <= 372) {
+            } else if (x >= ${layout_dpad_right_x} && x <= ${layout_dpad_right_x} + ${layout_dpad_right_w} && y >= ${layout_dpad_right_y} && y <= ${layout_dpad_right_y} + ${layout_dpad_right_h}) {
               btn_name = "DPAD_RIGHT";
               id(touch_repeat_cmd) = 4;
               id(shield_cmd).execute("DPAD_RIGHT");
-            } else if (x >= 148 && x <= 332 && y >= 237 && y <= 327) {
+            } else if (x >= ${layout_dpad_select_x} && x <= ${layout_dpad_select_x} + ${layout_dpad_select_w} && y >= ${layout_dpad_select_y} && y <= ${layout_dpad_select_y} + ${layout_dpad_select_h}) {
               btn_name = "DPAD_CENTER";
               id(touch_repeat_cmd) = 5;
               id(shield_cmd).execute("DPAD_CENTER");
             }
-            // --- Navigation & Play/Pause Row (y: 438 to 523) ---
-            else if (y >= 438 && y <= 523) {
-              if (x >= 16 && x <= 156) btn_name = "NAV_BACK";
-              else if (x >= 170 && x <= 310) btn_name = "NAV_HOME";
-              else if (x >= 324 && x <= 464) btn_name = "NAV_PLAY_PAUSE";
+            // --- Navigation & Play/Pause Row ---
+            else if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
+              btn_name = "NAV_BACK";
+            } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
+              btn_name = "NAV_HOME";
+            } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
+              btn_name = "NAV_PLAY_PAUSE";
             }
-            // --- 2x4 Media App Grid (y: 565 to 780) ---
-            else if (y >= 565 && y <= 780 && x >= 16 && x <= 462) {
-              int col = (x - 16) / 114; // app_w(104) + app_gap_x(10)
-              int row = (y - 565) / 115; // app_h(100) + app_gap_y(15)
-              if (col >= 0 && col < 4 && row >= 0 && row < 2) {
-                int idx = row * 4 + col;
+            // --- 2x4 Media App Grid ---
+            else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
+              int col = (x - ${layout_app_x}) / (${layout_app_w} + ${layout_app_gap_x});
+              int row = (y - ${layout_app_y}) / (${layout_app_h} + ${layout_app_gap_y});
+              if (col >= 0 && col < ${layout_app_columns} && row >= 0 && row < ${layout_app_rows}) {
+                int idx = row * ${layout_app_columns} + col;
                 const char* apps[8] = {
                   "APP_YOUTUBE", "APP_JELLYFIN", "APP_CRUNCHYROLL", "APP_PRIME_VIDEO",
                   "APP_DROPOUT", "APP_F1_TV", "APP_MAX", "APP_DISNEY_PLUS"
@@ -835,29 +887,29 @@ touchscreen:
             // Repeatable D-pad commands already executed on initial touch
             if (id(touch_repeat_cmd) == 0) {
               // --- Navigation & Play/Pause Row ---
-              if (y >= 438 && y <= 523) {
-                if (x >= 16 && x <= 156) {
-                  if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
-                  else id(shield_cmd).execute("BACK");
-                } else if (x >= 170 && x <= 310) {
-                  if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
-                  else id(shield_cmd).execute("HOME");
-                } else if (x >= 324 && x <= 464) {
-                  id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
-                }
+              if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
+                if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
+                else id(shield_cmd).execute("BACK");
+              } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
+                if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
+                else id(shield_cmd).execute("HOME");
+              } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
+                id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
               }
               // --- Volume Controls Row ---
-              else if (y >= 48 && y <= 133) {
-                if (x >= 16 && x <= 156) id(denon_mute).execute();
-                else if (x >= 170 && x <= 310) id(denon_vol_down).execute();
-                else if (x >= 324 && x <= 464) id(denon_vol_up).execute();
+              else if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
+                id(denon_mute).execute();
+              } else if (x >= ${layout_vol_down_x} && x <= ${layout_vol_down_x} + ${layout_vol_down_w} && y >= ${layout_vol_down_y} && y <= ${layout_vol_down_y} + ${layout_vol_down_h}) {
+                id(denon_vol_down).execute();
+              } else if (x >= ${layout_vol_up_x} && x <= ${layout_vol_up_x} + ${layout_vol_up_w} && y >= ${layout_vol_up_y} && y <= ${layout_vol_up_y} + ${layout_vol_up_h}) {
+                id(denon_vol_up).execute();
               }
               // --- 2x4 Media App Grid ---
-              else if (y >= 565 && y <= 780 && x >= 16 && x <= 462) {
-                int col = (x - 16) / 114;
-                int row = (y - 565) / 115;
-                if (col >= 0 && col < 4 && row >= 0 && row < 2) {
-                  int idx = row * 4 + col;
+              else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
+                int col = (x - ${layout_app_x}) / (${layout_app_w} + ${layout_app_gap_x});
+                int row = (y - ${layout_app_y}) / (${layout_app_h} + ${layout_app_gap_y});
+                if (col >= 0 && col < ${layout_app_columns} && row >= 0 && row < ${layout_app_rows}) {
+                  int idx = row * ${layout_app_columns} + col;
                   switch (idx) {
                     case 0: id(launch_app).execute("https://www.youtube.com"); break;
                     case 1: id(launch_app).execute("intent://#Intent;package=org.jellyfin.androidtv;end;"); break;
