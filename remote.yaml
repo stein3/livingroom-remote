@@ -3,6 +3,7 @@ substitutions:
   friendly_name: "Living Room Remote"
   shield_entity: "remote.shield"
   denon_entity: "media_player.denon_avr_x1400h"
+  weather_forecast_entity: "sensor.weather_forecast_hourly"
   layout_vol_mute_x: "16"
   layout_vol_mute_y: "48"
   layout_vol_mute_w: "140"
@@ -162,6 +163,8 @@ wifi:
 
 captive_portal:
 
+json:
+
 # =============================================================================
 # Buses & Power
 # =============================================================================
@@ -227,6 +230,12 @@ font:
   - file: "gfonts://Inter@600"
     id: font_sm
     size: 16
+  - file: "gfonts://Inter@600"
+    id: font_md
+    size: 24
+  - file: "gfonts://Inter@600"
+    id: font_lg
+    size: 34
 
 # =============================================================================
 # Rasterized Binary Vector Images (1-bit crisp monochrome)
@@ -236,11 +245,11 @@ image:
   - platform: file
     defaults:
       type: BINARY
-      transparency: opaque
-      resize: 480x800
+      transparency: chroma_key
     files:
-      - id: sleep_screen
-        file: https://raw.githubusercontent.com/CitizenRacer/BasementRemote/main/assets/sleep-screen.svg
+      - id: sleep_note
+        file: https://raw.githubusercontent.com/stein3/livingroom-remote/main/sleep-note.svg
+        invert_alpha: true
 
   - platform: file
     defaults:
@@ -320,6 +329,10 @@ globals:
   - id: remote_sleeping
     type: bool
     initial_value: "false"
+  - id: weather_last_update
+    type: uint32_t
+    restore_value: true
+    initial_value: "0"
   - id: touch_active
     type: bool
     initial_value: "false"
@@ -411,6 +424,22 @@ script:
     then:
       - script.execute: beep_double
       - lambda: "id(remote_sleeping) = true;"
+      - if:
+          condition:
+            lambda: |-
+              const auto now = id(rtc_time).now();
+              return now.is_valid() &&
+                     (id(weather_last_update) == 0 ||
+                      now.timestamp - id(weather_last_update) >= 12 * 60 * 60);
+          then:
+            - homeassistant.action:
+                action: homeassistant.update_entity
+                data:
+                  entity_id: ${weather_forecast_entity}
+            - delay: 5s
+            - lambda: |-
+                const auto now = id(rtc_time).now();
+                if (now.is_valid()) id(weather_last_update) = now.timestamp;
       - component.update: epaper_display
       - if:
           condition:
@@ -541,6 +570,18 @@ sensor:
       if (err != esphome::i2c::ERROR_OK) return NAN;
       uint16_t val = static_cast<uint16_t>(raw[0]) | (static_cast<uint16_t>(raw[1]) << 8);
       return (val > 100) ? NAN : static_cast<float>(val);
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_forecast
+    entity_id: ${weather_forecast_entity}
+    attribute: forecast
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("weather", "Forecast payload received (%u chars): %s",
+                     static_cast<unsigned>(x.size()), x.c_str());
 
 binary_sensor:
   - platform: homeassistant
@@ -687,7 +728,76 @@ display:
       it.rectangle(0, 0, w, h, black);
 
       if (id(remote_sleeping)) {
-        it.image(w / 2, h / 2, id(sleep_screen), ImageAlign::CENTER, white, black);
+        it.printf(460, 16, id(font_md), black, TextAlign::TOP_RIGHT, "Sleeping... Press to wake.");
+        it.image(0, 0, id(sleep_note), ImageAlign::TOP_LEFT, black, white);
+        const int base_fc_y = 88;
+        it.printf(16, base_fc_y, id(font_lg), black, TextAlign::TOP_LEFT, "Weather Forecast");
+        it.horizontal_line(16, base_fc_y + 48, 320, black);
+        it.printf(16, base_fc_y + 56, id(font_md), black, TextAlign::TOP_LEFT, "TIME");
+        it.printf(88, base_fc_y + 56, id(font_md), black, TextAlign::TOP_LEFT, "TEMP");
+        it.printf(168, base_fc_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "HUMIDITY");
+        it.printf(270, base_fc_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "CONDITION");
+        it.horizontal_line(16, base_fc_y + 86, 448, black);
+
+        const int first_forecast_y = base_fc_y + 98;
+        const int row_height = 52;
+        const int max_rows = 13;
+        const int forecast_hours = 24;
+        const int hour_step = (forecast_hours + max_rows - 1) / max_rows;
+        const int row_count = (forecast_hours + hour_step - 1) / hour_step;
+        const std::string &forecast_json = id(weather_forecast).state;
+
+        ESP_LOGI("weather", "Rendering forecast: payload length=%u, has_state=%s",
+                 static_cast<unsigned>(forecast_json.size()),
+                 forecast_json.empty() ? "false" : "true");
+        if (!forecast_json.empty()) {
+          auto forecast_doc = json::parse_json(forecast_json);
+          JsonArray forecast = forecast_doc.as<JsonArray>();
+          ESP_LOGI("weather", "Forecast JSON parsed: %u entries, displaying up to %d rows",
+                   static_cast<unsigned>(forecast.size()), row_count);
+          for (int row = 0; row < row_count; row++) {
+            const int forecast_index = row * hour_step;
+            if (forecast_index >= forecast.size()) {
+              ESP_LOGW("weather", "Forecast ended before row %d (index %d)", row, forecast_index);
+              break;
+            }
+
+            JsonObject entry = forecast[forecast_index];
+            const char *datetime = entry["datetime"] | "";
+            const int source_hour = (datetime[11] >= '0' && datetime[11] <= '9' &&
+                                     datetime[12] >= '0' && datetime[12] <= '9')
+                                        ? ((datetime[11] - '0') * 10 + datetime[12] - '0')
+                                        : -1;
+            const int display_hour = source_hour < 0 ? 0 : (source_hour % 12 == 0 ? 12 : source_hour % 12);
+            const char *meridiem = source_hour >= 12 ? "PM" : "AM";
+            const float temperature = entry["temperature"] | NAN;
+            const int humidity = entry["humidity"] | -1;
+            const char *condition = entry["condition"] | "Unknown";
+            const int y = first_forecast_y + row * row_height;
+
+            ESP_LOGI("weather", "Row %d: index=%d datetime=%s temperature=%.1f humidity=%d condition=%s",
+                     row, forecast_index, datetime, temperature, humidity, condition);
+
+            it.printf(16, y, id(font_md), black, TextAlign::TOP_LEFT,
+                      "%d%s", display_hour, meridiem);
+            if (isnan(temperature)) {
+              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "-- F");
+            } else {
+              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT,
+                        "%.0f F", temperature);
+            }
+            if (humidity < 0) {
+              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "--%%");
+            } else {
+              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT,
+                        "%d%%", humidity);
+            }
+            it.printf(270, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", condition);
+            if (row + 1 < row_count) {
+              it.horizontal_line(16, y + row_height - 10, 448, black);
+            }
+          }
+        }
         return;
       }
 
