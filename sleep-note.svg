@@ -2,6 +2,6 @@
   <rect width="480" height="95" fill="#fff"/>
   <circle cx="50" cy="45" r="40" fill="#000"/>
   <circle cx="67" cy="35" r="35" fill="#fff"/>
-  <path d="M180 86 216 86 C250 86 250 90 280 90 C310 90 340 51 300 51 C260 61 300 92 330 85 C350 85 370 73 476 73" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M453 61 L476 73 L453 85" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 66 C250 66 250 60 280 60 C310 55 340 80 300 90 C275 90 285 60 330 60 C350 60 370 73 476 68" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M453 56 L476 68 L453 80" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
