@@ -362,6 +362,10 @@ globals:
     type: uint32_t
     restore_value: true
     initial_value: "0"
+  - id: cached_forecast_json
+    type: std::string
+    restore_value: true
+    initial_value: '""'
   - id: touch_active
     type: bool
     initial_value: "false"
@@ -467,7 +471,7 @@ script:
           condition:
             lambda: |-
               const auto now = id(rtc_time).now();
-              const bool payload_missing = id(weather_forecast).state.empty();
+              const bool payload_missing = id(cached_forecast_json).empty();
               const bool never_updated = (id(weather_last_update) == 0);
               const bool stale = now.is_valid() && (now.timestamp - id(weather_last_update) >= 6 * 60 * 60);
               return payload_missing || never_updated || stale;
@@ -480,15 +484,7 @@ script:
             - wait_until:
                 timeout: 5s
                 condition:
-                  lambda: 'return !id(weather_forecast).state.empty();'
-            - lambda: |-
-                const auto now = id(rtc_time).now();
-                if (now.is_valid()) {
-                  id(weather_last_update) = now.timestamp;
-                } else if (id(weather_last_update) == 0) {
-                  id(weather_last_update) = 1;
-                }
-                ESP_LOGI("weather", "Weather forecast updated successfully.");
+                  lambda: 'return !id(cached_forecast_json).empty();'
 
   # Sleep Remote + Turn Off Devices
   - id: act_power_off_and_sleep
@@ -643,9 +639,21 @@ text_sensor:
     on_value:
       then:
         - lambda: |-
-            ESP_LOGI("weather", "Forecast payload received (%u chars)", static_cast<unsigned>(x.size()));
-            const auto now = id(rtc_time).now();
-            if (now.is_valid()) id(weather_last_update) = now.timestamp;
+            if (!x.empty()) {
+              id(cached_forecast_json) = x;
+              const auto now = id(rtc_time).now();
+              if (now.is_valid()) {
+                id(weather_last_update) = now.timestamp;
+              } else if (id(weather_last_update) == 0) {
+                id(weather_last_update) = 1;
+              }
+              ESP_LOGI("weather", "Forecast cached to NVS/RTC (%u chars)", static_cast<unsigned>(x.size()));
+              
+              // If user is actively looking at Page 1 when new data lands, refresh display
+              if (id(current_page) == 1 && !id(remote_sleeping)) {
+                id(epaper_display).update();
+              }
+            }
 
 binary_sensor:
   - platform: homeassistant
@@ -803,7 +811,10 @@ display:
         const int forecast_hours = 24;
         const int hour_step = (forecast_hours + max_rows - 1) / max_rows;
         const int row_count = (forecast_hours + hour_step - 1) / hour_step;
-        const std::string &forecast_json = id(weather_forecast).state;
+
+        const std::string &forecast_json = id(cached_forecast_json).empty() 
+                                             ? id(weather_forecast).state 
+                                             : id(cached_forecast_json);
 
         ESP_LOGI("weather", "Rendering forecast: payload length=%u, has_state=%s",
                  static_cast<unsigned>(forecast_json.size()),
