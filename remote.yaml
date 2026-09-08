@@ -763,13 +763,7 @@ display:
             }
 
             JsonObject entry = forecast[forecast_index];
-            const char *datetime = entry["datetime"] | "";
-            const int source_hour = (datetime[11] >= '0' && datetime[11] <= '9' &&
-                                     datetime[12] >= '0' && datetime[12] <= '9')
-                                        ? ((datetime[11] - '0') * 10 + datetime[12] - '0')
-                                        : -1;
-            const int display_hour = source_hour < 0 ? 0 : (source_hour % 12 == 0 ? 12 : source_hour % 12);
-            const char *meridiem = source_hour >= 12 ? "PM" : "AM";
+            const char *datetime = entry["datetime"] | "--";
             const float temperature = entry["temperature"] | NAN;
             const int humidity = entry["humidity"] | -1;
             const char *condition = entry["condition"] | "Unknown";
@@ -778,19 +772,17 @@ display:
             ESP_LOGI("weather", "Row %d: index=%d datetime=%s temperature=%.1f humidity=%d condition=%s",
                      row, forecast_index, datetime, temperature, humidity, condition);
 
-            it.printf(16, y, id(font_md), black, TextAlign::TOP_LEFT,
-                      "%d%s", display_hour, meridiem);
+            // Pre-formatted time string directly from HA (e.g., "6 PM")
+            it.printf(16, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", datetime);
             if (isnan(temperature)) {
               it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "-- F");
             } else {
-              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT,
-                        "%.0f F", temperature);
+              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "%.0f F", temperature);
             }
             if (humidity < 0) {
               it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "--%%");
             } else {
-              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT,
-                        "%d%%", humidity);
+              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "%d%%", humidity);
             }
             it.printf(270, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", condition);
             if (row + 1 < row_count) {
