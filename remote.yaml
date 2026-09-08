@@ -68,15 +68,31 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   on_boot:
-    - priority: 900
+    - priority: 1000
       then:
         - lambda: |-
             id(remote_sleeping) = false;
+            id(current_page) = 0;
+
             gpio_deep_sleep_hold_dis();
             gpio_hold_dis(GPIO_NUM_42);
             gpio_hold_dis(GPIO_NUM_45);
             gpio_hold_dis(GPIO_NUM_46);
             gpio_hold_dis(GPIO_NUM_47);
+
+            gpio_set_direction(GPIO_NUM_42, GPIO_MODE_OUTPUT);
+            gpio_set_level(GPIO_NUM_42, 1);
+
+            gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+            gpio_set_direction(GPIO_NUM_41, GPIO_MODE_OUTPUT);
+            gpio_set_level(GPIO_NUM_21, 0);
+            gpio_set_level(GPIO_NUM_41, 0);
+            delay(10);
+            gpio_set_level(GPIO_NUM_41, 1);
+            delay(10);
+
+            // Return INT pin to floating input for touch interrupts
+            gpio_set_direction(GPIO_NUM_21, GPIO_MODE_INPUT);
     - priority: 600
       then:
         - output.turn_on: pwr_hold
@@ -362,6 +378,17 @@ globals:
   - id: touch_repeat_cmd
     type: int
     initial_value: "0" # 1=Up, 2=Down, 3=Left, 4=Right, 5=Center
+  # Display Page
+  - id: current_page
+    type: int
+    initial_value: "0" # 0 = Remote, 1 = Weather
+  # Touch swipe tracking
+  - id: touch_end_x
+    type: int
+    initial_value: "-1"
+  - id: touch_end_y
+    type: int
+    initial_value: "-1"
 
 # =============================================================================
 # Action Scripts (Shield & Denon)
@@ -738,21 +765,18 @@ display:
       it.fill(white);
       it.rectangle(0, 0, w, h, black);
 
-      if (id(remote_sleeping)) {
-        it.printf(460, 16, id(font_md), black, TextAlign::TOP_RIGHT, "Sleeping... Press to wake.");
-        it.image(0, 0, id(sleep_note), ImageAlign::TOP_LEFT, black, white);
-        const int base_fc_y = 88;
-        it.printf(16, base_fc_y, id(font_lg), black, TextAlign::TOP_LEFT, "Weather Forecast");
-        it.horizontal_line(16, base_fc_y + 48, 320, black);
-        it.printf(16, base_fc_y + 56, id(font_md), black, TextAlign::TOP_LEFT, "TIME");
-        it.printf(88, base_fc_y + 56, id(font_md), black, TextAlign::TOP_LEFT, "TEMP");
-        it.printf(168, base_fc_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "HUMIDITY");
-        it.printf(270, base_fc_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "CONDITION");
-        it.horizontal_line(16, base_fc_y + 86, 448, black);
+      // Helper lambda to draw the weather table
+      auto draw_weather_table = [&](int base_y) {
+        it.horizontal_line(16, base_y + 48, 320, black);
+        it.printf(16, base_y + 56, id(font_sm), black, TextAlign::TOP_LEFT, "TIME");
+        it.printf(88, base_y + 56, id(font_sm), black, TextAlign::TOP_LEFT, "TEMP");
+        it.printf(168, base_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "HUMIDITY");
+        it.printf(270, base_y + 60, id(font_xs), black, TextAlign::TOP_LEFT, "CONDITION");
+        it.horizontal_line(16, base_y + 86, 448, black);
 
-        const int first_forecast_y = base_fc_y + 98;
+        const int first_forecast_y = base_y + 98;
         const int row_height = 52;
-        const int max_rows = 13;
+        const int max_rows = 12;
         const int forecast_hours = 24;
         const int hour_step = (forecast_hours + max_rows - 1) / max_rows;
         const int row_count = (forecast_hours + hour_step - 1) / hour_step;
@@ -801,12 +825,34 @@ display:
             }
           }
         }
+      };
+
+      // -------------------------------------------------------------
+      // 1. SLEEP SCREEN
+      // -------------------------------------------------------------
+      if (id(remote_sleeping)) {
+        it.printf(460, 16, id(font_md), black, TextAlign::TOP_RIGHT, "Sleeping... Press to wake.");
+        it.image(0, 0, id(sleep_note), ImageAlign::TOP_LEFT, black, white);
+        it.printf(16, 88, id(font_lg), black, TextAlign::TOP_LEFT, "Weather Forecast");
+        draw_weather_table(88);
         return;
       }
 
-      // =======================================================================
-      // 1. TOP STATUS BAR (Time, Date, Shield/TV State, Battery %)
-      // =======================================================================
+      // -------------------------------------------------------------
+      // 2. ACTIVE WEATHER PAGE (PAGE 1)
+      // -------------------------------------------------------------
+      if (id(current_page) == 1) {
+        it.printf(16, 12, id(font_sm), black, TextAlign::TOP_LEFT, "< Remote");
+        it.printf(240, 12, id(font_sm), black, TextAlign::TOP_CENTER, "Hourly Forecast");
+
+        it.horizontal_line(16, 36, 448, black);
+        draw_weather_table(44);
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // 3. MAIN REMOTE PAGE (PAGE 0)
+      // -------------------------------------------------------------
       auto now = id(rtc_time).now();
       if (now.is_valid()) {
         it.strftime(16, 12, id(font_sm), black, TextAlign::TOP_LEFT, "%H:%M", now);
@@ -815,7 +861,7 @@ display:
 
       // On/Off device indicator
       bool tv_on = id(shield_is_on).state;
-      it.printf(285, 13, id(font_xs), black, TextAlign::TOP_CENTER, "SHIELD: %s", tv_on ? "ON" : "OFF");
+      it.printf(240, 13, id(font_xs), black, TextAlign::TOP_CENTER, "SHIELD: %s", tv_on ? "ON" : "OFF");
 
       // Battery level & icon
       int b_pct = !isnan(id(battery_level).state) ? static_cast<int>(id(battery_level).state) : 0;
@@ -827,8 +873,8 @@ display:
 
       it.horizontal_line(16, 36, 448, black);
 
-      // =======================================================================
-      // 2. MUTE - UP - HOME
+      // Draw remote buttons
+      // MUTE - UP - HOME
       rounded_rect(${layout_vol_mute_x}, ${layout_vol_mute_y}, ${layout_vol_mute_w}, ${layout_vol_mute_h}, 14);
       it.image(${layout_vol_mute_x} + ${layout_vol_mute_w} / 2, ${layout_vol_mute_y} + ${layout_vol_mute_h} / 2, id(icon_vol_mute), ImageAlign::CENTER, black, white);
 
@@ -841,9 +887,7 @@ display:
       rounded_rect(${layout_nav_home_x}, ${layout_nav_home_y}, ${layout_nav_home_w}, ${layout_nav_home_h}, 14);
       it.image(${layout_nav_home_x} + ${layout_nav_home_w} / 2, ${layout_nav_home_y} + ${layout_nav_home_h} / 2, id(icon_home), ImageAlign::CENTER, black, white);
 
-      // =======================================================================
-      // 3. LEFT - SELECT - RIGHT
-      // =======================================================================
+      // LEFT - SELECT - RIGHT
       rounded_rect(${layout_dpad_left_x}, ${layout_dpad_left_y}, ${layout_dpad_left_w}, ${layout_dpad_left_h}, 14);
       it.image(${layout_dpad_left_x} + ${layout_dpad_left_w} / 2, ${layout_dpad_left_y} + ${layout_dpad_left_h} / 2, id(icon_left), ImageAlign::CENTER, black, white);
 
@@ -853,7 +897,7 @@ display:
       rounded_rect(${layout_dpad_right_x}, ${layout_dpad_right_y}, ${layout_dpad_right_w}, ${layout_dpad_right_h}, 14);
       it.image(${layout_dpad_right_x} + ${layout_dpad_right_w} / 2, ${layout_dpad_right_y} + ${layout_dpad_right_h} / 2, id(icon_right), ImageAlign::CENTER, black, white);
 
-      // 4. SKIP LEFT - DOWN - SKIP RIGHT
+      // SKIP LEFT - DOWN - SKIP RIGHT
       rounded_rect(${layout_skip_left_x}, ${layout_skip_left_y}, ${layout_skip_left_w}, ${layout_skip_left_h}, 14);
       it.image(${layout_skip_left_x} + ${layout_skip_left_w} / 2, ${layout_skip_left_y} + ${layout_skip_left_h} / 2, id(icon_skip_left), ImageAlign::CENTER, black, white);
 
@@ -863,7 +907,7 @@ display:
       rounded_rect(${layout_skip_right_x}, ${layout_skip_right_y}, ${layout_skip_right_w}, ${layout_skip_right_h}, 14);
       it.image(${layout_skip_right_x} + ${layout_skip_right_w} / 2, ${layout_skip_right_y} + ${layout_skip_right_h} / 2, id(icon_skip_right), ImageAlign::CENTER, black, white);
 
-      // 5. BACK - PLAY/PAUSE
+      // BACK - PLAY/PAUSE
       rounded_rect(${layout_nav_back_x}, ${layout_nav_back_y}, ${layout_nav_back_w}, ${layout_nav_back_h}, 14);
       it.image(${layout_nav_back_x} + ${layout_nav_back_w} / 2, ${layout_nav_back_y} + ${layout_nav_back_h} / 2, id(icon_back), ImageAlign::CENTER, black, white);
 
@@ -872,11 +916,7 @@ display:
 
       it.horizontal_line(${layout_divider_x}, ${layout_divider_y}, ${layout_divider_w}, black);
 
-      // =======================================================================
-      // 5. TWO ROWS OF FOUR MEDIA APPS
-      // =======================================================================
-      // Row 1: YouTube, Jellyfin, Crunchyroll, Prime Video
-      // Row 2: Dropout, F1 TV, Max, Disney+
+      // Media Apps
       display::BaseImage* app_logos[8] = {
         id(logo_youtube), id(logo_jellyfin), id(logo_crunchyroll), id(logo_prime),
         id(logo_dropout), id(logo_f1), id(logo_max), id(logo_disney)
@@ -915,125 +955,130 @@ touchscreen:
             id(touch_active) = true;
             id(touch_start_x) = x;
             id(touch_start_y) = y;
+            id(touch_end_x) = x;
+            id(touch_end_y) = y;
             id(touch_started_ms) = now;
             id(touch_last_repeat_ms) = now;
             id(touch_repeat_cmd) = 0;
 
-            const char* btn_name = "None";
+            // Only fire immediate D-Pad button commands on the Remote page
+            if (id(current_page) != 0) return;
 
-            // --- Mute - Up - Home ---
-            if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
-              btn_name = "VOL_MUTE";
-            }
-            // --- Full-Width D-Pad Matrix ---
-            else if (x >= ${layout_dpad_up_x} && x <= ${layout_dpad_up_x} + ${layout_dpad_up_w} && y >= ${layout_dpad_up_y} && y <= ${layout_dpad_up_y} + ${layout_dpad_up_h}) {
-              btn_name = "DPAD_UP";
+            // --- Full-Width D-Pad Matrix (immediate action) ---
+            if (x >= ${layout_dpad_up_x} && x <= ${layout_dpad_up_x} + ${layout_dpad_up_w} && y >= ${layout_dpad_up_y} && y <= ${layout_dpad_up_y} + ${layout_dpad_up_h}) {
               id(touch_repeat_cmd) = 1;
               id(shield_cmd).execute("DPAD_UP");
-            } else if (x >= ${layout_nav_menu_x} && x <= ${layout_nav_menu_x} + ${layout_nav_menu_w} && y >= ${layout_nav_menu_y} && y <= ${layout_nav_menu_y} + ${layout_nav_menu_h}) {
-              btn_name = "NAV_MENU";
             } else if (x >= ${layout_dpad_down_x} && x <= ${layout_dpad_down_x} + ${layout_dpad_down_w} && y >= ${layout_dpad_down_y} && y <= ${layout_dpad_down_y} + ${layout_dpad_down_h}) {
-              btn_name = "DPAD_DOWN";
               id(touch_repeat_cmd) = 2;
               id(shield_cmd).execute("DPAD_DOWN");
             } else if (x >= ${layout_dpad_left_x} && x <= ${layout_dpad_left_x} + ${layout_dpad_left_w} && y >= ${layout_dpad_left_y} && y <= ${layout_dpad_left_y} + ${layout_dpad_left_h}) {
-              btn_name = "DPAD_LEFT";
               id(touch_repeat_cmd) = 3;
               id(shield_cmd).execute("DPAD_LEFT");
             } else if (x >= ${layout_dpad_right_x} && x <= ${layout_dpad_right_x} + ${layout_dpad_right_w} && y >= ${layout_dpad_right_y} && y <= ${layout_dpad_right_y} + ${layout_dpad_right_h}) {
-              btn_name = "DPAD_RIGHT";
               id(touch_repeat_cmd) = 4;
               id(shield_cmd).execute("DPAD_RIGHT");
             } else if (x >= ${layout_dpad_select_x} && x <= ${layout_dpad_select_x} + ${layout_dpad_select_w} && y >= ${layout_dpad_select_y} && y <= ${layout_dpad_select_y} + ${layout_dpad_select_h}) {
-              btn_name = "DPAD_CENTER";
               id(touch_repeat_cmd) = 5;
               id(shield_cmd).execute("DPAD_CENTER");
             }
-            // --- Skip Left - Down - Skip Right ---
-            else if (x >= ${layout_skip_left_x} && x <= ${layout_skip_left_x} + ${layout_skip_left_w} && y >= ${layout_skip_left_y} && y <= ${layout_skip_left_y} + ${layout_skip_left_h}) {
-              btn_name = "SKIP_LEFT";
-            } else if (x >= ${layout_skip_right_x} && x <= ${layout_skip_right_x} + ${layout_skip_right_w} && y >= ${layout_skip_right_y} && y <= ${layout_skip_right_y} + ${layout_skip_right_h}) {
-              btn_name = "SKIP_RIGHT";
-            }
-            // --- Home - Back - Play/Pause ---
-            else if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
-              btn_name = "NAV_BACK";
-            } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
-              btn_name = "NAV_HOME";
-            } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
-              btn_name = "NAV_PLAY_PAUSE";
-            }
-            // --- 2x4 Media App Grid ---
-            else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
-              int col = (x - ${layout_app_x}) / (${layout_app_w} + ${layout_app_gap_x});
-              int row = (y - ${layout_app_y}) / (${layout_app_h} + ${layout_app_gap_y});
-              if (col >= 0 && col < ${layout_app_columns} && row >= 0 && row < ${layout_app_rows}) {
-                int idx = row * ${layout_app_columns} + col;
-                const char* apps[8] = {
-                  "APP_YOUTUBE", "APP_JELLYFIN", "APP_CRUNCHYROLL", "APP_PRIME_VIDEO",
-                  "APP_DROPOUT", "APP_F1_TV", "APP_MAX", "APP_DISNEY_PLUS"
-                };
-                btn_name = apps[idx];
-              }
-            }
 
-            if (strcmp(btn_name, "None") != 0) {
-              ESP_LOGI("touch", "Button Pressed: %s (X=%d, Y=%d)", btn_name, x, y);
-            } else {
-              ESP_LOGD("touch", "Touch registered outside button bounds (X=%d, Y=%d)", x, y);
+    # Continuously record touch points to track drag / swipe distance
+    on_update:
+      then:
+        - lambda: |-
+            for (auto t : touches) {
+              if (t.state <= 2) {
+                id(touch_end_x) = t.x;
+                id(touch_end_y) = t.y;
+                // Cancel D-pad repeat if user dragged significantly (started a swipe)
+                if (abs(t.x - id(touch_start_x)) > 40) {
+                  id(touch_repeat_cmd) = 0;
+                }
+              }
             }
 
     on_release:
       then:
         - lambda: |-
             if (!id(touch_active)) return;
-            const int x = id(touch_start_x);
-            const int y = id(touch_start_y);
+            const int start_x = id(touch_start_x);
+            const int start_y = id(touch_start_y);
+            const int dx = id(touch_end_x) - start_x;
+            const int dy = id(touch_end_y) - start_y;
             const uint32_t held_ms = millis() - id(touch_started_ms);
-
-            // Repeatable D-pad commands already executed on initial touch
-            if (id(touch_repeat_cmd) == 0) {
-              // --- Navigation & Play/Pause Row ---
-              if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
-                if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
-                else id(shield_cmd).execute("BACK");
-              } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
-                if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
-                else id(shield_cmd).execute("HOME");
-              } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
-                id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
-              } else if (x >= ${layout_nav_menu_x} && x <= ${layout_nav_menu_x} + ${layout_nav_menu_w} && y >= ${layout_nav_menu_y} && y <= ${layout_nav_menu_y} + ${layout_nav_menu_h}) {
-                id(shield_cmd).execute("MENU");
-              }
-              // --- Mute ---
-              else if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
-                id(denon_mute).execute();
-              }
-              // --- Skip Left - Skip Right ---
-              else if (x >= ${layout_skip_left_x} && x <= ${layout_skip_left_x} + ${layout_skip_left_w} && y >= ${layout_skip_left_y} && y <= ${layout_skip_left_y} + ${layout_skip_left_h}) {
-                id(shield_cmd).execute("MEDIA_REWIND");
-              } else if (x >= ${layout_skip_right_x} && x <= ${layout_skip_right_x} + ${layout_skip_right_w} && y >= ${layout_skip_right_y} && y <= ${layout_skip_right_y} + ${layout_skip_right_h}) {
-                id(shield_cmd).execute("MEDIA_FAST_FORWARD");
-              }
-              // --- 2x4 Media App Grid ---
-              else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
-                int col = (x - ${layout_app_x}) / (${layout_app_w} + ${layout_app_gap_x});
-                int row = (y - ${layout_app_y}) / (${layout_app_h} + ${layout_app_gap_y});
-                if (col >= 0 && col < ${layout_app_columns} && row >= 0 && row < ${layout_app_rows}) {
-                  int idx = row * ${layout_app_columns} + col;
-                  switch (idx) {
-                    case 0: id(launch_app).execute("https://www.youtube.com"); break;
-                    case 1: id(launch_app).execute("intent://#Intent;package=org.jellyfin.androidtv;end;"); break;
-                    case 2: id(launch_app).execute("crunchyroll://"); break;
-                    case 3: id(launch_app).execute("https://app.primevideo.com"); break;
-                    case 4: id(launch_app).execute("vhxdropout://"); break;
-                    case 5: id(launch_app).execute("intent://#Intent;package=com.formulaone.production;end;"); break;
-                    case 6: id(launch_app).execute("https://play.hbomax.com"); break;
-                    case 7: id(launch_app).execute("https://www.disneyplus.com"); break;
-                  }
-                }
-              }
-            }
 
             id(touch_active) = false;
             id(touch_repeat_cmd) = 0;
+
+            // --- Swipe Detection (min 80px horizontal travel, horizontal dominance) ---
+            if (abs(dx) > 80 && abs(dx) > abs(dy) * 1.3) {
+              if (dx < 0 && id(current_page) == 0) {
+                // Swipe Left -> Go to Weather Forecast
+                id(current_page) = 1;
+                id(beep_tap).execute();
+                id(epaper_display).update();
+                return;
+              } else if (dx > 0 && id(current_page) == 1) {
+                // Swipe Right -> Go back to Remote
+                id(current_page) = 0;
+                id(beep_tap).execute();
+                id(epaper_display).update();
+                return;
+              }
+            }
+
+            // --- Weather Page Tap Handling ---
+            if (id(current_page) == 1) {
+              // Tap header bar / back button area (Y <= 45) to return to remote
+              if (start_y <= 45) {
+                id(current_page) = 0;
+                id(beep_tap).execute();
+                id(epaper_display).update();
+              }
+              return;
+            }
+
+            // --- Remote Page Button Releases ---
+            const int x = start_x;
+            const int y = start_y;
+
+            // Navigation & Play/Pause
+            if (x >= ${layout_nav_back_x} && x <= ${layout_nav_back_x} + ${layout_nav_back_w} && y >= ${layout_nav_back_y} && y <= ${layout_nav_back_y} + ${layout_nav_back_h}) {
+              if (held_ms >= 500) id(shield_hold_cmd).execute("BACK", "0.5");
+              else id(shield_cmd).execute("BACK");
+            } else if (x >= ${layout_nav_home_x} && x <= ${layout_nav_home_x} + ${layout_nav_home_w} && y >= ${layout_nav_home_y} && y <= ${layout_nav_home_y} + ${layout_nav_home_h}) {
+              if (held_ms >= 500) id(shield_hold_cmd).execute("HOME", "0.5");
+              else id(shield_cmd).execute("HOME");
+            } else if (x >= ${layout_nav_play_x} && x <= ${layout_nav_play_x} + ${layout_nav_play_w} && y >= ${layout_nav_play_y} && y <= ${layout_nav_play_y} + ${layout_nav_play_h}) {
+              id(shield_cmd).execute("MEDIA_PLAY_PAUSE");
+            } else if (x >= ${layout_nav_menu_x} && x <= ${layout_nav_menu_x} + ${layout_nav_menu_w} && y >= ${layout_nav_menu_y} && y <= ${layout_nav_menu_y} + ${layout_nav_menu_h}) {
+              id(shield_cmd).execute("MENU");
+            }
+            // Mute
+            else if (x >= ${layout_vol_mute_x} && x <= ${layout_vol_mute_x} + ${layout_vol_mute_w} && y >= ${layout_vol_mute_y} && y <= ${layout_vol_mute_y} + ${layout_vol_mute_h}) {
+              id(denon_mute).execute();
+            }
+            // Skips
+            else if (x >= ${layout_skip_left_x} && x <= ${layout_skip_left_x} + ${layout_skip_left_w} && y >= ${layout_skip_left_y} && y <= ${layout_skip_left_y} + ${layout_skip_left_h}) {
+              id(shield_cmd).execute("MEDIA_REWIND");
+            } else if (x >= ${layout_skip_right_x} && x <= ${layout_skip_right_x} + ${layout_skip_right_w} && y >= ${layout_skip_right_y} && y <= ${layout_skip_right_y} + ${layout_skip_right_h}) {
+              id(shield_cmd).execute("MEDIA_FAST_FORWARD");
+            }
+            // Media App Grid
+            else if (x >= ${layout_app_x} && x <= ${layout_app_x} + ${layout_app_columns} * ${layout_app_w} + (${layout_app_columns} - 1) * ${layout_app_gap_x} && y >= ${layout_app_y} && y <= ${layout_app_y} + ${layout_app_rows} * ${layout_app_h} + (${layout_app_rows} - 1) * ${layout_app_gap_y}) {
+              int col = (x - ${layout_app_x}) / (${layout_app_w} + ${layout_app_gap_x});
+              int row = (y - ${layout_app_y}) / (${layout_app_h} + ${layout_app_gap_y});
+              if (col >= 0 && col < ${layout_app_columns} && row >= 0 && row < ${layout_app_rows}) {
+                int idx = row * ${layout_app_columns} + col;
+                switch (idx) {
+                  case 0: id(launch_app).execute("https://www.youtube.com"); break;
+                  case 1: id(launch_app).execute("intent://#Intent;package=org.jellyfin.androidtv;end;"); break;
+                  case 2: id(launch_app).execute("crunchyroll://"); break;
+                  case 3: id(launch_app).execute("https://app.primevideo.com"); break;
+                  case 4: id(launch_app).execute("vhxdropout://"); break;
+                  case 5: id(launch_app).execute("intent://#Intent;package=com.formulaone.production;end;"); break;
+                  case 6: id(launch_app).execute("https://play.hbomax.com"); break;
+                  case 7: id(launch_app).execute("https://www.disneyplus.com"); break;
+                }
+              }
+            }
