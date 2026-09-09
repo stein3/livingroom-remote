@@ -123,8 +123,6 @@ esphome:
               - logger.log:
                   level: WARN
                   format: "HA API connection timed out. Commands may fail until connected."
-    - priority: 250
-      then:
         - script.execute: beep_hello
   on_shutdown:
     then:
@@ -641,7 +639,15 @@ time:
     i2c_id: sensor_i2c
     id: rtc_time
     address: 0x51
-    update_interval: never
+    update_interval: 300s
+    on_time:
+      - seconds: 0       # Fires exactly at the top of every minute (:00)
+        then:
+          - lambda: |-
+              // Only update if awake
+              if (!id(remote_sleeping)) {
+                id(epaper_display).update();
+              }
   - platform: homeassistant
     on_time_sync:
       then:
@@ -666,6 +672,13 @@ sensor:
       if (err != esphome::i2c::ERROR_OK) return NAN;
       uint16_t val = static_cast<uint16_t>(raw[0]) | (static_cast<uint16_t>(raw[1]) << 8);
       return (val > 100) ? NAN : static_cast<float>(val);
+    on_value:
+      then:
+        - lambda: |-
+            int current_pct = static_cast<int>(x);
+            if (!id(remote_sleeping)) {
+              id(epaper_display).update();
+            }
 
 text_sensor:
   - platform: homeassistant
@@ -845,8 +858,33 @@ display:
       it.fill(white);
       it.rectangle(0, 0, w, h, black);
 
+      // Status Bar (Time / Date / Center Text / Battery)
+      auto draw_status_bar = [&](const std::string &center_label) {
+        auto now = id(rtc_time).now();
+        if (now.is_valid()) {
+          it.strftime(10, 2, id(font_md), black, TextAlign::TOP_LEFT, "%H:%M", now);
+          it.strftime(90, 10, id(font_sm), black, TextAlign::TOP_LEFT, "%a %b %d", now);
+        }
+
+        // Center label
+        if (!center_label.empty()) {
+          it.printf(280, 10, id(font_sm), black, TextAlign::TOP_CENTER, "%s", center_label.c_str());
+        }
+
+        // Battery percentage & icon
+        int b_pct = !isnan(id(battery_level).state) ? static_cast<int>(id(battery_level).state) : 0;
+        it.printf(435, 2, id(font_md), black, TextAlign::TOP_RIGHT, "%d%%", b_pct);
+        it.rectangle(442, 12, 22, 12, black);
+        it.filled_rectangle(464, 15, 2, 6, black);
+        int b_bar = (18 * b_pct) / 100;
+        if (b_bar > 0) it.filled_rectangle(444, 14, b_bar, 8, black);
+
+        it.horizontal_line(12, 36, 448, black);
+      };
+
       // Helper lambda to draw the weather table
       auto draw_weather_table = [&](int base_y) {
+        it.printf(16, base_y, id(font_lg), black, TextAlign::TOP_LEFT, "Weather Forecast");
         it.horizontal_line(16, base_y + 48, 320, black);
         it.printf(16, base_y + 56, id(font_sm), black, TextAlign::TOP_LEFT, "TIME");
         it.printf(88, base_y + 56, id(font_sm), black, TextAlign::TOP_LEFT, "TEMP");
@@ -855,11 +893,12 @@ display:
         it.horizontal_line(16, base_y + 86, 448, black);
 
         const int first_forecast_y = base_y + 98;
-        const int row_height = 52;
+        const int row_height = 50;
         const int max_rows = 12;
         const int forecast_hours = 24;
         const int hour_step = (forecast_hours + max_rows - 1) / max_rows;
         const int row_count = (forecast_hours + hour_step - 1) / hour_step;
+        ESP_LOGI("weather", "Rendering forecast table: %d rows, %d hour step, max %d rows", row_count, hour_step, max_rows);
 
         std::string raw_json = id(cached_forecast_json).empty() 
                                ? id(weather_forecast).state 
@@ -922,10 +961,10 @@ display:
       // 1. SLEEP SCREEN
       // -------------------------------------------------------------
       if (id(remote_sleeping)) {
-        it.printf(460, 16, id(font_md), black, TextAlign::TOP_RIGHT, "Sleeping... Press to wake.");
-        it.image(0, 0, id(sleep_note), ImageAlign::TOP_LEFT, black, white);
-        it.printf(16, 88, id(font_lg), black, TextAlign::TOP_LEFT, "Weather Forecast");
-        draw_weather_table(88);
+        draw_status_bar("");
+        it.printf(440, 40, id(font_md), black, TextAlign::TOP_RIGHT, "Sleeping... Press to wake.");
+        it.image(0, 20, id(sleep_note), ImageAlign::TOP_LEFT, black, white);
+        draw_weather_table(100);
         return;
       }
 
@@ -933,36 +972,23 @@ display:
       // 2. ACTIVE WEATHER PAGE (PAGE 1)
       // -------------------------------------------------------------
       if (id(current_page) == 1) {
-        it.printf(16, 12, id(font_sm), black, TextAlign::TOP_LEFT, "< Remote");
-        it.printf(240, 12, id(font_sm), black, TextAlign::TOP_CENTER, "Hourly Forecast");
+        draw_status_bar("WEATHER FORECAST");
 
-        it.horizontal_line(16, 36, 448, black);
-        draw_weather_table(44);
+        // Subheader navigation bar
+        it.printf(16, 44, id(font_sm), black, TextAlign::TOP_LEFT, "< Remote");
+        it.printf(240, 44, id(font_xs), black, TextAlign::TOP_CENTER, "Hourly Breakdown");
+
+        it.horizontal_line(16, 68, 448, black);
+        draw_weather_table(100);
         return;
       }
 
       // -------------------------------------------------------------
       // 3. MAIN REMOTE PAGE (PAGE 0)
       // -------------------------------------------------------------
-      auto now = id(rtc_time).now();
-      if (now.is_valid()) {
-        it.strftime(16, 12, id(font_sm), black, TextAlign::TOP_LEFT, "%H:%M", now);
-        it.strftime(75, 13, id(font_xs), black, TextAlign::TOP_LEFT, "%a %b %d", now);
-      }
-
-      // On/Off device indicator
       bool tv_on = id(shield_is_on).state;
-      it.printf(240, 13, id(font_xs), black, TextAlign::TOP_CENTER, "SHIELD: %s", tv_on ? "ON" : "OFF");
-
-      // Battery level & icon
-      int b_pct = !isnan(id(battery_level).state) ? static_cast<int>(id(battery_level).state) : 0;
-      it.printf(435, 12, id(font_xs), black, TextAlign::TOP_RIGHT, "%d%%", b_pct);
-      it.rectangle(442, 12, 22, 12, black);
-      it.filled_rectangle(464, 15, 2, 6, black);
-      int b_bar = (18 * b_pct) / 100;
-      if (b_bar > 0) it.filled_rectangle(444, 14, b_bar, 8, black);
-
-      it.horizontal_line(16, 36, 448, black);
+      std::string shield_status = tv_on ? "SHIELD: ON" : "SHIELD: OFF";
+      draw_status_bar(shield_status);
 
       // Draw remote buttons
       // MUTE - UP - HOME
