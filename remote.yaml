@@ -388,6 +388,12 @@ globals:
   - id: current_page
     type: int
     initial_value: "0" # 0 = Remote, 1 = Weather
+  - id: displayed_page
+    type: int
+    initial_value: "0"
+  - id: last_display_update_ms
+    type: uint32_t
+    initial_value: "0"
   # Touch swipe tracking
   - id: touch_end_x
     type: int
@@ -401,6 +407,36 @@ globals:
 # =============================================================================
 
 script:
+  - id: trigger_display_refresh
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          if (id(current_page) != id(displayed_page)) {
+            if (now - id(last_display_update_ms) >= 5000) {
+              id(displayed_page) = id(current_page);
+              id(last_display_update_ms) = now;
+              id(epaper_display).update();
+            }
+          }
+
+  - id: beep_warn
+    then:
+      - output.ledc.set_frequency:
+          id: buzzer_pwm
+          frequency: 660Hz
+      - light.turn_on:
+          id: buzzer
+          brightness: 20%
+      - delay: 60ms
+      - light.turn_off: buzzer
+      - delay: 30ms
+      - light.turn_on:
+          id: buzzer
+          brightness: 20%
+      - delay: 60ms
+      - light.turn_off: buzzer
+      - delay: 30ms
+
   - id: beep_hello
     then:
       # Note 1: C6 (~1047 Hz)
@@ -520,6 +556,7 @@ script:
                 data:
                   entity_id: ${denon_entity}
       - delay: 3000ms
+      - script.execute: beep_warn
       - deep_sleep.enter: sticky_deep_sleep
 
   # Shield Commands
@@ -651,7 +688,7 @@ text_sensor:
               
               // If user is actively looking at Page 1 when new data lands, refresh display
               if (id(current_page) == 1 && !id(remote_sleeping)) {
-                id(epaper_display).update();
+                id(trigger_display_refresh).execute();
               }
             }
 
@@ -758,6 +795,18 @@ interval:
             case 4: id(shield_cmd).execute("DPAD_RIGHT"); break;
             case 5: id(shield_cmd).execute("DPAD_CENTER"); break;
           }
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (!id(remote_sleeping)) {
+            if (id(current_page) != id(displayed_page)) {
+              if (millis() - id(last_display_update_ms) >= 5000) {
+                id(displayed_page) = id(current_page);
+                id(last_display_update_ms) = millis();
+                id(epaper_display).update();
+              }
+            }
+          }
 
 # =============================================================================
 # E-Paper Canvas Rendering (480 x 800 Portrait)
@@ -812,51 +861,59 @@ display:
         const int hour_step = (forecast_hours + max_rows - 1) / max_rows;
         const int row_count = (forecast_hours + hour_step - 1) / hour_step;
 
-        const std::string &forecast_json = id(cached_forecast_json).empty() 
-                                             ? id(weather_forecast).state 
-                                             : id(cached_forecast_json);
+        std::string raw_json = id(cached_forecast_json).empty() 
+                               ? id(weather_forecast).state 
+                               : id(cached_forecast_json);
 
-        ESP_LOGI("weather", "Rendering forecast: payload length=%u, has_state=%s",
-                 static_cast<unsigned>(forecast_json.size()),
-                 forecast_json.empty() ? "false" : "true");
-        if (!forecast_json.empty()) {
-          auto forecast_doc = json::parse_json(forecast_json);
-          JsonArray forecast = forecast_doc.as<JsonArray>();
-          ESP_LOGI("weather", "Forecast JSON parsed: %u entries, displaying up to %d rows",
-                   static_cast<unsigned>(forecast.size()), row_count);
-          for (int row = 0; row < row_count; row++) {
-            const int forecast_index = row * hour_step;
-            if (forecast_index >= forecast.size()) {
-              ESP_LOGW("weather", "Forecast ended before row %d (index %d)", row, forecast_index);
-              break;
-            }
+        if (raw_json.empty() || raw_json == "unavailable" || raw_json == "unknown") {
+          it.printf(240, first_forecast_y + 40, id(font_md), black, TextAlign::TOP_CENTER, "No Forecast Data");
+          return;
+        }
 
-            JsonObject entry = forecast[forecast_index];
-            const char *datetime = entry["datetime"] | "--";
-            const float temperature = entry["temperature"] | NAN;
-            const int humidity = entry["humidity"] | -1;
-            const char *condition = entry["condition"] | "Unknown";
-            const int y = first_forecast_y + row * row_height;
+        // Home Assistant attributes format python dicts with single quotes. Convert to standard JSON:
+        if (raw_json.find('\'') != std::string::npos) {
+          for (char &c : raw_json) {
+            if (c == '\'') c = '"';
+          }
+        }
 
-            ESP_LOGI("weather", "Row %d: index=%d datetime=%s temperature=%.1f humidity=%d condition=%s",
-                     row, forecast_index, datetime, temperature, humidity, condition);
+        auto forecast_doc = json::parse_json(raw_json);
+        if (!forecast_doc.is<JsonArray>()) {
+          ESP_LOGW("weather", "Failed to parse forecast JSON into array");
+          it.printf(240, first_forecast_y + 40, id(font_md), black, TextAlign::TOP_CENTER, "Forecast Parse Error");
+          return;
+        }
+        JsonArray forecast = forecast_doc.as<JsonArray>();
+        const int total_items = forecast.size();
+        for (int row = 0; row < row_count && row < max_rows; row++) {
+          App.feed_wdt();  // Prevent Task Watchdog timeout during text rasterization
+          const int forecast_index = row * hour_step;
+          if (forecast_index >= total_items) break;
 
-            // Pre-formatted time string directly from HA (e.g., "6 PM")
-            it.printf(16, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", datetime);
-            if (isnan(temperature)) {
-              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "-- F");
-            } else {
-              it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "%.0f F", temperature);
-            }
-            if (humidity < 0) {
-              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "--%%");
-            } else {
-              it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "%d%%", humidity);
-            }
-            it.printf(270, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", condition);
-            if (row + 1 < row_count) {
-              it.horizontal_line(16, y + row_height - 10, 448, black);
-            }
+          JsonObject entry = forecast[forecast_index];
+          if (entry.isNull()) continue;
+          // Safe extract with explicit string checking
+          std::string datetime = entry["datetime"].is<const char*>() ? entry["datetime"].as<const char*>() : "--";
+          std::string condition = entry["condition"].is<const char*>() ? entry["condition"].as<const char*>() : "Unknown";
+          float temperature = entry["temperature"] | NAN;
+          int humidity = entry["humidity"] | -1;
+          const int y = first_forecast_y + row * row_height;
+          if (y + row_height > it.get_height()) break;
+
+          it.printf(16, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", datetime.c_str());
+          if (isnan(temperature)) {
+            it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "-- F");
+          } else {
+            it.printf(92, y, id(font_md), black, TextAlign::TOP_LEFT, "%.0f F", temperature);
+          }
+          if (humidity < 0) {
+            it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "--%%");
+          } else {
+            it.printf(168, y, id(font_md), black, TextAlign::TOP_LEFT, "%d%%", humidity);
+          }
+          it.printf(270, y, id(font_md), black, TextAlign::TOP_LEFT, "%s", condition.c_str());
+          if (row + 1 < row_count) {
+            it.horizontal_line(16, y + row_height - 10, 448, black);
           }
         }
       };
@@ -1035,6 +1092,7 @@ touchscreen:
       then:
         - lambda: |-
             if (!id(touch_active)) return;
+            const int num_pages = 2;
             const int start_x = id(touch_start_x);
             const int start_y = id(touch_start_y);
             const int dx = id(touch_end_x) - start_x;
@@ -1044,31 +1102,29 @@ touchscreen:
             id(touch_active) = false;
             id(touch_repeat_cmd) = 0;
 
-            // --- Swipe Detection (min 80px horizontal travel, horizontal dominance) ---
             if (abs(dx) > 80 && abs(dx) > abs(dy) * 1.3) {
-              if (dx < 0 && id(current_page) == 0) {
-                // Swipe Left -> Go to Weather Forecast
-                id(current_page) = 1;
+              if (dx < 0) {
+                // Swipe Left
+                id(current_page) = (id(current_page) + 1) % num_pages;
+                ESP_LOGI("touch", "Target page: %d", id(current_page));
                 id(beep_tap).execute();
-                id(epaper_display).update();
+                id(trigger_display_refresh).execute();
                 return;
-              } else if (dx > 0 && id(current_page) == 1) {
-                // Swipe Right -> Go back to Remote
-                id(current_page) = 0;
+              } else if (dx > 0) {
+                // Swipe Right
+                id(current_page) = (id(current_page) - 1 + num_pages) % num_pages;
+                ESP_LOGI("touch", "Target page: %d", id(current_page));
                 id(beep_tap).execute();
-                id(epaper_display).update();
+                id(trigger_display_refresh).execute();
                 return;
               }
             }
 
-            // --- Weather Page Tap Handling ---
-            if (id(current_page) == 1) {
-              // Tap header bar / back button area (Y <= 45) to return to remote
-              if (start_y <= 45) {
-                id(current_page) = 0;
-                id(beep_tap).execute();
-                id(epaper_display).update();
-              }
+            // Weather Page Back Button Area
+            if (id(current_page) == 1 && start_y <= 45) {
+              id(current_page) = 0;
+              id(beep_tap).execute();
+              id(trigger_display_refresh).execute();
               return;
             }
 
