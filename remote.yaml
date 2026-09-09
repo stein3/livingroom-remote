@@ -520,8 +520,8 @@ script:
                 condition:
                   lambda: 'return !id(cached_forecast_json).empty();'
 
-  # Sleep Remote + Turn Off Devices
-  - id: act_power_off_and_sleep
+  # Sleep Remote
+  - id: sleep_remote
     then:
       - script.execute: beep_double
       - lambda: "id(remote_sleeping) = true;"
@@ -535,8 +535,13 @@ script:
 
       # Render the sleep screen with the freshest data available
       - component.update: epaper_display
-      - delay: 1200ms
+      - delay: 2800ms
+      - deep_sleep.enter: sticky_deep_sleep
 
+  # Turn Off Devices
+  - id: act_power_off_media
+    then:
+      - script.execute: beep_warn
       - if:
           condition:
             lambda: "return id(shield_is_on).state;"
@@ -553,9 +558,6 @@ script:
                 action: media_player.turn_off
                 data:
                   entity_id: ${denon_entity}
-      - delay: 3000ms
-      - script.execute: beep_warn
-      - deep_sleep.enter: sticky_deep_sleep
 
   # Shield Commands
   - id: shield_cmd
@@ -777,8 +779,16 @@ binary_sensor:
     filters:
       - delayed_on: 10ms
       - delayed_off: 10ms
-    on_press:
-      - script.execute: act_power_off_and_sleep
+    on_click:
+      - min_length: 500ms
+        max_length: 5000ms
+        then:
+          - script.execute: act_power_off_media
+          - script.execute: sleep_remote
+      - min_length: 50ms
+        max_length: 499ms
+        then:
+          - script.execute: sleep_remote
 
 deep_sleep:
   id: sticky_deep_sleep
