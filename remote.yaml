@@ -427,7 +427,7 @@ script:
           brightness: 20%
       - delay: 60ms
       - light.turn_off: buzzer
-      - delay: 30ms
+      - delay: 120ms
       - light.turn_on:
           id: buzzer
           brightness: 20%
@@ -443,7 +443,7 @@ script:
           frequency: 1047Hz
       - light.turn_on:
           id: buzzer
-          brightness: 20%
+          brightness: 12%
       - delay: 60ms
       - light.turn_off: buzzer
       - delay: 30ms
@@ -454,7 +454,7 @@ script:
           frequency: 1319Hz
       - light.turn_on:
           id: buzzer
-          brightness: 25%
+          brightness: 15%
       - delay: 60ms
       - light.turn_off: buzzer
       - delay: 30ms
@@ -465,7 +465,7 @@ script:
           frequency: 1568Hz
       - light.turn_on:
           id: buzzer
-          brightness: 30%
+          brightness: 18%
       - delay: 60ms
       - light.turn_off: buzzer
       - delay: 30ms
@@ -487,13 +487,13 @@ script:
     then:
       - light.turn_on:
           id: buzzer
-          brightness: 20%
+          brightness: 15%
       - delay: 35ms
       - light.turn_off: buzzer
       - delay: 40ms
       - light.turn_on:
           id: buzzer
-          brightness: 20%
+          brightness: 15%
       - delay: 35ms
       - light.turn_off: buzzer
 
