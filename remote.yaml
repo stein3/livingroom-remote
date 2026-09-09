@@ -642,14 +642,6 @@ time:
     id: rtc_time
     address: 0x51
     update_interval: 300s
-    on_time:
-      - seconds: 0       # Fires exactly at the top of every minute (:00)
-        then:
-          - lambda: |-
-              // Only update if awake
-              if (!id(remote_sleeping)) {
-                id(epaper_display).update();
-              }
   - platform: homeassistant
     on_time_sync:
       then:
